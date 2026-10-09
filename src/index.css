@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Base oscura: aunque alguna clase de Tailwind no se genere (ej. el dev
+   server de StackBlitz no recargó el CSS), ningún texto queda negro y los
+   controles nativos (select, fecha, número) se pintan en modo oscuro. */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+input,
+select,
+textarea,
+button {
+  color: inherit;
+}
+
+select option {
+  background: #020617;
+  color: #f8fafc;
+}
