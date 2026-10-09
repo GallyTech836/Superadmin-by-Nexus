@@ -12,6 +12,7 @@ import {
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
+import TerminologyEditor from './TerminologyEditor';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
 
@@ -59,7 +60,7 @@ function ActionButton({ onClick, tone = 'indigo', icon: Icon, children, disabled
 
 export default function BusinessDetail({
   business, plans, activity = [], onClose, initialTab = 'resumen',
-  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, pushActivity,
+  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, pushActivity,
 }) {
   const [tab, setTab] = useState(initialTab);
   const plan = plans.find((p) => p.id === business.plan) || null;
@@ -183,6 +184,15 @@ export default function BusinessDetail({
       await updateInfo(business.id, infoForm);
       await pushActivity('Datos actualizados', `Se editó la información de ${business.name}`, { negocioId: business.id });
       setEditingInfo(false);
+    });
+  }
+
+  // ── Terminología (solo textos) ──
+  async function saveTerminology(overrides, { concept, value }) {
+    await run(async () => {
+      await updateTerminology(business.id, overrides);
+      const what = value ? `${value.singular} / ${value.plural}` : 'predeterminado del tipo';
+      await pushActivity('Terminología actualizada', `${business.name}: término "${concept}" → ${what}`, { negocioId: business.id });
     });
   }
 
@@ -322,6 +332,9 @@ export default function BusinessDetail({
               <SelectField label="Tipo de negocio" value={infoForm.businessType} onChange={(e) => setInfoForm((f) => ({ ...f, businessType: e.target.value }))}>
                 {BUSINESS_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
               </SelectField>
+              {Object.keys(business.terminologyOverrides || {}).length > 0 && infoForm.businessType !== resolveBusinessType(business.businessType) && (
+                <p className="col-span-2 text-[11px] text-amber-400/80">Cambias el tipo: las personalizaciones de terminología de este negocio se conservan.</p>
+              )}
               <button onClick={saveInfo} disabled={busy} className="col-span-2 rounded-lg bg-indigo-500 py-2 text-sm font-medium text-white hover:bg-indigo-600">Guardar cambios</button>
             </div>
           ) : (
@@ -346,6 +359,8 @@ export default function BusinessDetail({
               </Info>
             </div>
           )}
+
+          {updateTerminology && <TerminologyEditor business={business} onSave={saveTerminology} busy={busy} />}
 
           <div className="border-t border-white/5 pt-4">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Acciones</p>

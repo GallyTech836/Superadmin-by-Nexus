@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { computeEffectiveStatus, cleanOverrides } from '../shared/capabilityModel';
-import { isValidBusinessType } from '../shared/businessProfileModel';
+import { isValidBusinessType, cleanTerminologyOverrides } from '../shared/businessProfileModel';
 
 // Muchos negocios existentes se auto-crearon vía useNegocio.js en GallyFlow
 // y NO tienen plan/status/subscriptionEnd todavía. Este normalizador les
@@ -25,6 +25,8 @@ function normalize(id, data) {
     city: data.city || '',
     // Tipo de negocio. null = negocio anterior sin tipo (Nexus usa el fallback 'otro').
     businessType: isValidBusinessType(data.businessType) ? data.businessType : null,
+    // Personalización de términos (solo textos). {} = usa los del tipo.
+    terminologyOverrides: cleanTerminologyOverrides(data.terminologyOverrides),
     // 'trial' era un valor fijo viejo (no es un ID de plan real).
     plan: data.plan && data.plan !== 'trial' ? data.plan : null,
     rawStatus,
@@ -86,6 +88,11 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), { capabilityOverrides: cleanOverrides(overrides) });
   }
 
+  /** Reemplaza la terminología personalizada del negocio ({} = predeterminada). */
+  async function updateTerminology(id, overrides) {
+    await updateDoc(doc(db, 'negocios', id), { terminologyOverrides: cleanTerminologyOverrides(overrides) });
+  }
+
   /** Prueba gratuita: { trialStart, trialEnd, trialDays } y opcionalmente status. */
   async function updateTrial(id, { trialStart, trialEnd, trialDays, status }) {
     const patch = {
@@ -97,5 +104,5 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), patch);
   }
 
-  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial };
+  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology };
 }

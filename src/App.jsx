@@ -22,7 +22,7 @@ const LoadingScreen = (
 function App() {
   const { user, loading, error, login, logout } = useSuperAdminAuth();
   const [page, setPage] = useState('dashboard');
-  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial } = useBusinesses();
+  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology } = useBusinesses();
   const { activity, pushActivity } = useActivity();
   const platformStats = usePlatformStats();
   const { plans, createPlan, updatePlan: updatePlanDef, deletePlan } = usePlans();
@@ -58,7 +58,7 @@ function App() {
 
   const pages = {
     dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} />,
-    negocios: <NegociosPage businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} pushActivity={pushActivity} />,
+    negocios: <NegociosPage businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} pushActivity={pushActivity} />,
     administradores: <AdminsPage businesses={businesses} />,
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
     planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} pushActivity={pushActivity} />,
