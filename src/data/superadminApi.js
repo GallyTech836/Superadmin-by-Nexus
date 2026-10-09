@@ -17,7 +17,7 @@ async function request(path, { method = 'GET', body } = {}) {
   return data;
 }
 
-/** Crea Auth + negocio. formData: { name, ownerName, ownerEmail, phone, country, city, plan, status, trialDays } */
+/** Crea Auth + negocio. formData: { name, businessType, ownerName, ownerEmail, phone, country, city, plan, status, trialDays } */
 export async function createBusiness(formData) {
   return request('/negocios', { method: 'POST', body: formData }); // { id, tempPassword }
 }

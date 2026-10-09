@@ -13,7 +13,7 @@
 //   planes/{planId}.features[key]            -> valor del plan
 //   negocios/{id}.capabilityOverrides[key]   -> excepción del negocio
 //   CAPABILITIES[].default                   -> valor si nadie dice nada
-// Prioridad: override del negocio > plan > default.
+// Prioridad: override del negocio > plan > perfil del tipo de negocio > default.
 //
 // Formato de un valor (plan u override), todos opcionales:
 //   true | false                       (atajo de { enabled })
@@ -171,20 +171,23 @@ function readFromMap(map, cap) {
  * @param {object} args
  * @param {object|null} args.planFeatures   planes/{id}.features
  * @param {object|null} args.overrides      negocios/{id}.capabilityOverrides
+ * @param {object|null} args.profileDefaults capabilityDefaults del tipo de negocio
+ *                                        (businessProfileModel). Va entre plan y catálogo.
  * @returns {Record<string, {
  *   enabled: boolean, limit: number|null,
- *   source: 'core'|'override'|'plan'|'default'|'soon'|'requires',
- *   limitSource: 'override'|'plan'|'default'|null,
+ *   source: 'core'|'override'|'plan'|'profile'|'default'|'soon'|'requires',
+ *   limitSource: 'override'|'plan'|'profile'|'default'|null,
  *   plan: {enabled?, limit?}|null, override: {enabled?, limit?}|null,
  *   blockedBy?: string
  * }>}
  */
-export function resolveCapabilities({ planFeatures = null, overrides = null } = {}) {
+export function resolveCapabilities({ planFeatures = null, overrides = null, profileDefaults = null } = {}) {
   const result = {};
 
   for (const cap of CAPABILITIES) {
     const plan = readFromMap(planFeatures, cap);
     const override = readFromMap(overrides, cap);
+    const profile = readFromMap(profileDefaults, cap);
 
     let enabled;
     let source;
@@ -196,6 +199,8 @@ export function resolveCapabilities({ planFeatures = null, overrides = null } = 
       enabled = override.enabled; source = 'override';
     } else if (plan && typeof plan.enabled === 'boolean') {
       enabled = plan.enabled; source = 'plan';
+    } else if (profile && typeof profile.enabled === 'boolean') {
+      enabled = profile.enabled; source = 'profile';
     } else {
       enabled = !!cap.default; source = 'default';
     }
@@ -205,6 +210,7 @@ export function resolveCapabilities({ planFeatures = null, overrides = null } = 
     if (cap.limit) {
       if (override && hasOwn(override, 'limit')) { limit = override.limit; limitSource = 'override'; }
       else if (plan && hasOwn(plan, 'limit')) { limit = plan.limit; limitSource = 'plan'; }
+      else if (profile && hasOwn(profile, 'limit')) { limit = profile.limit; limitSource = 'profile'; }
       else { limit = cap.limit.defaultLimit ?? null; limitSource = 'default'; }
     }
 

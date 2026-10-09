@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { computeEffectiveStatus, cleanOverrides } from '../shared/capabilityModel';
+import { isValidBusinessType } from '../shared/businessProfileModel';
 
 // Muchos negocios existentes se auto-crearon vía useNegocio.js en GallyFlow
 // y NO tienen plan/status/subscriptionEnd todavía. Este normalizador les
@@ -22,6 +23,8 @@ function normalize(id, data) {
     phone: data.phone || '',
     country: data.country || '',
     city: data.city || '',
+    // Tipo de negocio. null = negocio anterior sin tipo (Nexus usa el fallback 'otro').
+    businessType: isValidBusinessType(data.businessType) ? data.businessType : null,
     // 'trial' era un valor fijo viejo (no es un ID de plan real).
     plan: data.plan && data.plan !== 'trial' ? data.plan : null,
     rawStatus,
@@ -65,10 +68,12 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), { plan: plan || null });
   }
 
-  async function updateInfo(id, { name, ownerName, phone, country, city }) {
+  async function updateInfo(id, { name, ownerName, phone, country, city, businessType }) {
     await updateDoc(doc(db, 'negocios', id), {
       ownerName, phone, country, city,
       'heroConfig.businessName': name,
+      // Solo se escribe si viene un tipo válido: nunca se borra el existente.
+      ...(isValidBusinessType(businessType) ? { businessType } : {}),
     });
   }
 

@@ -4,7 +4,7 @@ import {
   KeyRound, Lock, Eye, EyeOff, Copy, Check,
 } from 'lucide-react';
 import {
-  DetailPage, Field, StatusBadge, Tabs, Toggle, LimitInput, CapStatusBadge, UsageBar, SOURCE_LABELS, STATUS_LABELS,
+  DetailPage, Field, SelectField, StatusBadge, Tabs, Toggle, LimitInput, CapStatusBadge, UsageBar, SOURCE_LABELS, STATUS_LABELS,
   daysRemaining, formatDateTime,
 } from './common';
 import {
@@ -13,6 +13,7 @@ import {
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
+import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
 
 const TABS = [
   { key: 'resumen', label: 'Resumen' },
@@ -78,14 +79,16 @@ export default function BusinessDetail({
     if (!draftDirty) setDraft(business.capabilityOverrides || {});
   }, [business.capabilityOverrides, draftDirty]);
 
+  // Capacidades por defecto del tipo de negocio (mismo criterio que Nexus y backend).
+  const profileDefaults = getBusinessProfile(business.businessType).capabilityDefaults || null;
   const resolvedSaved = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides }),
-    [plan, business.capabilityOverrides],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults }),
+    [plan, business.capabilityOverrides, profileDefaults],
   );
-  const resolvedPlan = useMemo(() => resolveCapabilities({ planFeatures: plan?.features || null }), [plan]);
+  const resolvedPlan = useMemo(() => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults }), [plan, profileDefaults]);
   const resolvedDraft = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft }),
-    [plan, draft],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults }),
+    [plan, draft, profileDefaults],
   );
   const overrideCount = Object.keys(cleanOverrides(business.capabilityOverrides)).length;
   const activeCount = CAPABILITIES.filter((c) => c.status !== 'soon' && resolvedSaved[c.key].enabled).length;
@@ -163,7 +166,10 @@ export default function BusinessDetail({
   const [editingInfo, setEditingInfo] = useState(false);
   const [infoForm, setInfoForm] = useState(null);
   function startEditInfo() {
-    setInfoForm({ name: business.name, ownerName: business.ownerName, phone: business.phone, country: business.country, city: business.city });
+    setInfoForm({
+      name: business.name, ownerName: business.ownerName, phone: business.phone, country: business.country, city: business.city,
+      businessType: resolveBusinessType(business.businessType),
+    });
     setEditingInfo(true);
   }
   async function saveInfo() {
@@ -307,6 +313,9 @@ export default function BusinessDetail({
               <Field label="Teléfono" value={infoForm.phone} onChange={(e) => setInfoForm((f) => ({ ...f, phone: e.target.value }))} />
               <Field label="Ciudad" value={infoForm.city} onChange={(e) => setInfoForm((f) => ({ ...f, city: e.target.value }))} />
               <Field label="País" value={infoForm.country} onChange={(e) => setInfoForm((f) => ({ ...f, country: e.target.value }))} />
+              <SelectField label="Tipo de negocio" value={infoForm.businessType} onChange={(e) => setInfoForm((f) => ({ ...f, businessType: e.target.value }))}>
+                {BUSINESS_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </SelectField>
               <button onClick={saveInfo} disabled={busy} className="col-span-2 rounded-lg bg-indigo-500 py-2 text-sm font-medium text-white hover:bg-indigo-600">Guardar cambios</button>
             </div>
           ) : (
@@ -315,6 +324,10 @@ export default function BusinessDetail({
               <Info label="Teléfono">{business.phone || '—'}</Info>
               <Info label="Ciudad">{business.city || '—'}{business.country ? `, ${business.country}` : ''}</Info>
               <Info label="Creado">{business.createdAt || '—'}</Info>
+              <Info label="Tipo de negocio">
+                {getBusinessTypeLabel(business.businessType)}
+                {!business.businessType && <span className="text-xs text-slate-500"> (por defecto)</span>}
+              </Info>
               <Info label="Plan">{planName} <span className="text-xs text-slate-500">{plan ? formatPrice(plan) : ''}</span></Info>
               <Info label="Estado"><StatusBadge status={business.status} /></Info>
               <Info label="Vencimiento">{business.subscriptionEnd ? `${business.subscriptionEnd} (${daysRemaining(business.subscriptionEnd)} d)` : '—'}</Info>

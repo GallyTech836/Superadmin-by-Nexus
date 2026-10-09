@@ -5,9 +5,10 @@ import BusinessDetail from '../components/BusinessDetail';
 import { createBusiness } from '../data/superadminApi';
 import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
 import { cleanOverrides } from '../shared/capabilityModel';
+import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, getBusinessTypeLabel } from '../shared/businessProfileModel';
 
 const emptyForm = {
-  name: '', ownerName: '', phone: '', country: 'Bolivia', city: '',
+  name: '', businessType: DEFAULT_BUSINESS_TYPE, ownerName: '', phone: '', country: 'Bolivia', city: '',
   ownerEmail: '', password: '', plan: '', status: 'trial', trialDays: DEFAULT_TRIAL_DAYS,
 };
 
@@ -61,7 +62,7 @@ export default function NegociosPage({
     setCreateError('');
     try {
       const { id, tempPassword } = await createBusiness(form);
-      await pushActivity('Negocio creado', `${form.name} fue registrado con administrador ${form.ownerEmail} (plan ${planName(form.plan)}, ${STATUS_LABELS[form.status]})`, {
+      await pushActivity('Negocio creado', `${form.name} fue registrado con administrador ${form.ownerEmail} (${getBusinessTypeLabel(form.businessType)}, plan ${planName(form.plan)}, ${STATUS_LABELS[form.status]})`, {
         negocioId: id, planId: form.plan || null,
       });
       setCreatedCreds({ email: form.ownerEmail, tempPassword });
@@ -226,6 +227,9 @@ export default function NegociosPage({
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Información del negocio</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Nombre del negocio" value={form.name} onChange={(e) => updateForm('name', e.target.value)} />
+                  <SelectField label="Tipo de negocio" value={form.businessType} onChange={(e) => updateForm('businessType', e.target.value)}>
+                    {BUSINESS_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  </SelectField>
                   <Field label="Nombre del propietario" value={form.ownerName} onChange={(e) => updateForm('ownerName', e.target.value)} />
                   <Field label="Teléfono" value={form.phone} onChange={(e) => updateForm('phone', e.target.value)} />
                   <Field label="Ciudad" value={form.city} onChange={(e) => updateForm('city', e.target.value)} />
