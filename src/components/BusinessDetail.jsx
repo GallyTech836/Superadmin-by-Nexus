@@ -8,7 +8,7 @@ import {
   daysRemaining, formatDateTime,
 } from './common';
 import {
-  CAPABILITIES, CAPABILITY_CATEGORIES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
+  CAPABILITIES, CAPABILITY_MODULES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
@@ -79,16 +79,22 @@ export default function BusinessDetail({
     if (!draftDirty) setDraft(business.capabilityOverrides || {});
   }, [business.capabilityOverrides, draftDirty]);
 
-  // Capacidades por defecto del tipo de negocio (mismo criterio que Nexus y backend).
-  const profileDefaults = getBusinessProfile(business.businessType).capabilityDefaults || null;
+  // Restricciones del tipo de negocio (mismo criterio que Nexus y backend):
+  // solo puede apagar (módulos no relevantes / defaults en false), nunca habilitar.
+  const businessProfile = getBusinessProfile(business.businessType);
+  const profileDefaults = businessProfile.capabilityDefaults || null;
+  const relevantModules = businessProfile.modules || null;
   const resolvedSaved = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults }),
-    [plan, business.capabilityOverrides, profileDefaults],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules }),
+    [plan, business.capabilityOverrides, profileDefaults, relevantModules],
   );
-  const resolvedPlan = useMemo(() => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults }), [plan, profileDefaults]);
+  const resolvedPlan = useMemo(
+    () => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules }),
+    [plan, profileDefaults, relevantModules],
+  );
   const resolvedDraft = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults }),
-    [plan, draft, profileDefaults],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults, relevantModules }),
+    [plan, draft, profileDefaults, relevantModules],
   );
   const overrideCount = Object.keys(cleanOverrides(business.capabilityOverrides)).length;
   const activeCount = CAPABILITIES.filter((c) => c.status !== 'soon' && resolvedSaved[c.key].enabled).length;
@@ -398,19 +404,23 @@ export default function BusinessDetail({
               <thead>
                 <tr className="border-b border-white/5 text-[10px] uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2 font-medium">Capacidad</th>
-                  <th className="px-2 py-2 text-center font-medium">Plan</th>
+                  <th className="px-2 py-2 text-center font-medium">Plan / tipo</th>
                   <th className="px-2 py-2 font-medium">Excepción</th>
                   <th className="px-2 py-2 font-medium">Límite</th>
                   <th className="px-2 py-2 text-center font-medium">Resultado</th>
                 </tr>
               </thead>
-              {CAPABILITY_CATEGORIES.map((cat) => {
-                const caps = CAPABILITIES.filter((c) => c.category === cat.key && c.status !== 'soon' && !c.core);
+              {CAPABILITY_MODULES.map((mod) => {
+                const caps = CAPABILITIES.filter((c) => c.module === mod.key && c.status !== 'soon' && !c.core);
                 if (!caps.length) return null;
+                const moduleHidden = Array.isArray(relevantModules) && !relevantModules.includes(mod.key);
                 return (
-                  <tbody key={cat.key} className="divide-y divide-white/5">
+                  <tbody key={mod.key} className="divide-y divide-white/5">
                     <tr className="bg-slate-950/60">
-                      <td colSpan={5} className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">{cat.label}</td>
+                      <td colSpan={5} className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        {mod.label}
+                        {moduleHidden && <span className="ml-2 normal-case tracking-normal text-amber-400/80">No relevante para {businessProfile.label}</span>}
+                      </td>
                     </tr>
                     {caps.map((cap) => {
                       const r = resolvedDraft[cap.key];
@@ -427,6 +437,7 @@ export default function BusinessDetail({
                               {cap.status !== 'implemented' && <CapStatusBadge status={cap.status} label={CAPABILITY_STATUS[cap.status].label} />}
                             </div>
                             {r.blockedBy && <p className="text-[10px] text-slate-500">Requiere "{getCapability(r.blockedBy).label}"</p>}
+                            {r.source === 'profile' && <p className="text-[10px] text-amber-400/80">Restringida por el tipo de negocio</p>}
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             {cap.kind === 'quota' ? <span className="text-slate-400">{limitText(cap, planVal.limit)}</span> : (

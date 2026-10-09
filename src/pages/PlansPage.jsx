@@ -1,15 +1,29 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, AlertTriangle, Link2 } from 'lucide-react';
 import { Modal, Field, Toggle, LimitInput, CapStatusBadge } from '../components/common';
 import { BILLING_CYCLES, BILLING_LABELS, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import {
   CAPABILITIES,
-  CAPABILITY_CATEGORIES,
+  CAPABILITY_MODULES,
   CAPABILITY_STATUS,
   resolveCapabilities,
   buildPlanFeatures,
   getCapability,
+  getDependents,
 } from '../shared/capabilityModel';
+
+// Capacidades vendibles de un módulo (las "Próximamente" van aparte).
+function moduleCaps(moduleKey) {
+  return CAPABILITIES.filter((c) => c.module === moduleKey && c.status !== 'soon');
+}
+
+// Leyenda de estados de implementación (detectados del catálogo, no inventados).
+const STATUS_HELP = {
+  implemented: 'Funciona con datos reales.',
+  partial: 'Funciona, pero incompleta.',
+  mock: 'Maqueta: la pantalla existe pero no guarda datos reales. No es operativa.',
+  soon: 'Pendiente: solo para planificación, no se puede activar.',
+};
 
 const emptyForm = {
   name: '',
@@ -57,6 +71,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [showSoon, setShowSoon] = useState(false);
+  const [collapsed, setCollapsed] = useState({}); // { [moduleKey]: true }
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const usageByPlan = useMemo(() => {
@@ -67,6 +82,20 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
 
   const soonCaps = CAPABILITIES.filter((c) => c.status === 'soon');
   const draftResolved = useMemo(() => resolveCapabilities({ planFeatures: form.features }), [form.features]);
+
+  // Resumen del borrador: qué queda habilitado / deshabilitado / no operativo,
+  // y qué capacidades marcadas no funcionarán porque falta su requisito.
+  const draftSummary = useMemo(() => {
+    const toggles = CAPABILITIES.filter((c) => c.status !== 'soon' && !c.core && c.kind !== 'quota');
+    const enabled = toggles.filter((c) => draftResolved[c.key]?.enabled);
+    const blocked = toggles.filter((c) => form.features[c.key]?.enabled && draftResolved[c.key]?.blockedBy);
+    return {
+      enabled: enabled.length,
+      disabled: toggles.length - enabled.length,
+      nonOperational: enabled.filter((c) => c.status === 'mock'),
+      blocked,
+    };
+  }, [draftResolved, form.features]);
 
   function openCreate() {
     setForm({ ...emptyForm, features: draftFromPlan(null) });
@@ -91,6 +120,21 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
 
   function setCap(key, patch) {
     setForm((f) => ({ ...f, features: { ...f.features, [key]: { ...f.features[key], ...patch } } }));
+  }
+
+  /** Activa la capacidad que falta (y, en cadena, las que ella requiera). */
+  function includeRequirement(key) {
+    setForm((f) => {
+      const features = { ...f.features };
+      let k = key;
+      while (k) {
+        const cap = getCapability(k);
+        if (!cap || cap.core || cap.kind === 'quota') break;
+        features[k] = { ...features[k], enabled: true };
+        k = cap.requires;
+      }
+      return { ...f, features };
+    });
   }
 
   async function handleSave() {
@@ -165,19 +209,20 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
               {plan.description && <p className="mt-2 text-xs text-slate-500">{plan.description}</p>}
 
               <div className="mt-4 space-y-3 text-sm">
-                {CAPABILITY_CATEGORIES.map((cat) => {
-                  const caps = CAPABILITIES.filter((c) => c.category === cat.key && c.status !== 'soon');
+                {CAPABILITY_MODULES.map((mod) => {
+                  const caps = moduleCaps(mod.key);
                   if (!caps.length) return null;
                   return (
-                    <div key={cat.key}>
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-600">{cat.label}</p>
+                    <div key={mod.key}>
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-600">{mod.label}</p>
                       {caps.map((cap) => {
                         const v = resolved[cap.key];
                         return (
                           <div key={cap.key} className="flex items-center justify-between py-0.5">
                             <span className={`text-xs ${v.enabled ? 'text-slate-300' : 'text-slate-600'}`}>
                               {cap.label}
-                              {cap.status === 'mock' && <span className="ml-1 text-[10px] text-amber-500/80">(maqueta)</span>}
+                              {cap.status === 'mock' && <span className="ml-1 text-[10px] text-amber-500/80">(maqueta, no operativa)</span>}
+                              {cap.status === 'partial' && <span className="ml-1 text-[10px] text-sky-400/80">(parcial)</span>}
                             </span>
                             {v.enabled ? (
                               <span className="flex items-center gap-1 text-xs text-emerald-400">
@@ -271,14 +316,63 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
             </div>
 
             <div>
-              <p className="mb-2 text-xs text-slate-400">Capacidades incluidas</p>
-              <div className="space-y-4">
-                {CAPABILITY_CATEGORIES.map((cat) => {
-                  const caps = CAPABILITIES.filter((c) => c.category === cat.key && c.status !== 'soon');
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-slate-400">Capacidades incluidas, por módulo de Nexus</p>
+                <p className="text-[11px] text-slate-500">
+                  <span className="text-emerald-400">{draftSummary.enabled} habilitadas</span>
+                  {' · '}<span>{draftSummary.disabled} deshabilitadas</span>
+                  {draftSummary.nonOperational.length > 0 && (
+                    <>{' · '}<span className="text-amber-400">{draftSummary.nonOperational.length} no operativas (maqueta)</span></>
+                  )}
+                </p>
+              </div>
+
+              {/* Leyenda de estados */}
+              <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
+                {Object.entries(CAPABILITY_STATUS).map(([key, st]) => (
+                  <span key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500" title={STATUS_HELP[key]}>
+                    <CapStatusBadge status={key} label={st.label} />
+                    <span className="hidden sm:inline">{STATUS_HELP[key]}</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Aviso: capacidades marcadas cuyo requisito no está incluido */}
+              {draftSummary.blocked.length > 0 && (
+                <div className="mb-3 space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                  <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={14} /> Estas capacidades están marcadas pero NO quedarán habilitadas:</p>
+                  {draftSummary.blocked.map((cap) => {
+                    const req = getCapability(draftResolved[cap.key].blockedBy);
+                    return (
+                      <div key={cap.key} className="flex flex-wrap items-center gap-2 pl-5">
+                        <span>"{cap.label}" necesita "{req.label}".</span>
+                        <button onClick={() => includeRequirement(req.key)} className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[11px] text-amber-200 hover:bg-amber-500/30">
+                          Incluir "{req.label}"
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {CAPABILITY_MODULES.map((mod) => {
+                  const caps = moduleCaps(mod.key);
                   if (!caps.length) return null;
+                  const isCollapsed = !!collapsed[mod.key];
+                  const enabledHere = caps.filter((c) => draftResolved[c.key]?.enabled).length;
                   return (
-                    <div key={cat.key} className="rounded-xl border border-white/5">
-                      <p className="border-b border-white/5 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">{cat.label}</p>
+                    <div key={mod.key} className="rounded-xl border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsed((c) => ({ ...c, [mod.key]: !c[mod.key] }))}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left ${isCollapsed ? '' : 'border-b border-white/5'}`}
+                      >
+                        {isCollapsed ? <ChevronRight size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
+                        <span className="flex-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">{mod.label}</span>
+                        <span className="text-[11px] text-slate-500">{enabledHere}/{caps.length}</span>
+                      </button>
+                      {!isCollapsed && (
                       <div className="divide-y divide-white/5">
                         {caps.map((cap) => {
                           if (cap.core) {
@@ -290,25 +384,43 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                             );
                           }
                           const v = form.features[cap.key] || { enabled: false, limit: null };
+                          const r = draftResolved[cap.key] || {};
                           // Dependencias en cadena (ej. Historial → Ficha → Clientes).
-                          const blockedBy = draftResolved[cap.key]?.blockedBy;
-                          const parent = blockedBy ? getCapability(blockedBy) : null;
-                          const parentOff = !!parent;
+                          const parent = cap.requires ? getCapability(cap.requires) : null;
+                          const parentMissing = !!r.blockedBy;
+                          const dependents = getDependents(cap.key);
+                          const lostDependents = !r.enabled ? dependents.filter((d) => form.features[d.key]?.enabled) : [];
                           const isQuota = cap.kind === 'quota';
                           return (
-                            <div key={cap.key} className="flex flex-wrap items-center gap-3 px-3 py-1.5">
+                            <div key={cap.key} className={`flex flex-wrap items-center gap-3 px-3 py-1.5 ${parentMissing && v.enabled ? 'bg-amber-500/5' : ''}`}>
                               {!isQuota && (
-                                <Toggle value={!!v.enabled && !parentOff} disabled={parentOff} onChange={(on) => setCap(cap.key, { enabled: on })} />
+                                <Toggle value={!!v.enabled} onChange={(on) => setCap(cap.key, { enabled: on })} />
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs text-slate-200">{cap.label}</span>
+                                  <span className={`text-xs ${isQuota || r.enabled ? 'text-slate-200' : 'text-slate-500'}`}>{cap.label}</span>
                                   {cap.status !== 'implemented' && <CapStatusBadge status={cap.status} label={CAPABILITY_STATUS[cap.status].label} />}
+                                  {!isQuota && (
+                                    <span className={`text-[10px] ${r.enabled ? 'text-emerald-400' : 'text-slate-600'}`}>
+                                      {r.enabled ? 'Habilitada' : 'Deshabilitada'}
+                                    </span>
+                                  )}
                                 </div>
                                 {cap.status === 'mock' && (
                                   <p className="text-[11px] text-amber-500/80">Maqueta: la pantalla existe pero todavía no guarda datos reales.</p>
                                 )}
-                                {parentOff && <p className="text-[11px] text-slate-500">Requiere "{parent.label}".</p>}
+                                {parent && (
+                                  <p className={`flex items-center gap-1 text-[11px] ${parentMissing && v.enabled ? 'text-amber-400' : 'text-slate-500'}`}>
+                                    <Link2 size={11} /> Requiere "{parent.label}"{parentMissing && v.enabled ? ' — no está incluida' : ''}
+                                  </p>
+                                )}
+                                {dependents.length > 0 && (
+                                  <p className={`text-[11px] ${lostDependents.length ? 'text-amber-400' : 'text-slate-600'}`}>
+                                    {lostDependents.length
+                                      ? `Al no incluirla se desactivan: ${lostDependents.map((d) => d.label).join(', ')}`
+                                      : `Necesaria para: ${dependents.map((d) => d.label).join(', ')}`}
+                                  </p>
+                                )}
                               </div>
                               {cap.limit && (isQuota || v.enabled) && (
                                 <div className="flex items-center gap-2">
@@ -320,6 +432,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   );
                 })}
@@ -327,12 +440,14 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 <div className="rounded-xl border border-dashed border-white/10">
                   <button onClick={() => setShowSoon((s) => !s)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     {showSoon ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    Próximamente ({soonCaps.length}) — no se pueden activar todavía
+                    Pendientes ({soonCaps.length}) — solo planificación, no se pueden activar
                   </button>
                   {showSoon && (
                     <div className="flex flex-wrap gap-2 px-3 pb-3">
                       {soonCaps.map((cap) => (
-                        <span key={cap.key} className="rounded-md bg-slate-800/60 px-2 py-1 text-xs text-slate-500">{cap.label}</span>
+                        <span key={cap.key} className="rounded-md bg-slate-800/60 px-2 py-1 text-xs text-slate-500">
+                          {cap.label} <span className="text-slate-600">· {CAPABILITY_MODULES.find((m) => m.key === cap.module)?.label}</span>
+                        </span>
                       ))}
                     </div>
                   )}
