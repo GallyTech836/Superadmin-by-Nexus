@@ -24,3 +24,8 @@ select option {
   background: #020617;
   color: #f8fafc;
 }
+
+/* Números alineados (Fase 4/5): reemplaza a la letra monoespaciada. */
+.nx-num {
+  font-variant-numeric: tabular-nums;
+}

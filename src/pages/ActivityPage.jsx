@@ -38,7 +38,7 @@ export default function ActivityPage({ activity, businesses = [] }) {
               <p className="shrink-0 text-xs text-slate-500">{formatDateTime(a.createdAt) || a.date}</p>
             </div>
             <p className="mt-1 text-sm text-slate-400">{a.description}</p>
-            <p className="mt-1 text-[11px] text-slate-600">
+            <p className="mt-1 text-xs text-slate-600">
               {a.actorEmail ? `por ${a.actorEmail}` : 'autor no registrado'}
               {a.negocioId ? ` · negocio: ${nameById[a.negocioId] || a.negocioId}` : ''}
             </p>

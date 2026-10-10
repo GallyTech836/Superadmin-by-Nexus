@@ -73,7 +73,7 @@ export default function SubscriptionsPage({ businesses, plans, updatePlan, updat
                   <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
                   <td className="px-4 py-3 text-slate-400">
                     {b.subscriptionEnd ? `${b.subscriptionEnd} (${days}d)` : 'Sin definir'}
-                    {b.rawStatus === 'trial' && b.trialEnd && <span className="block text-[11px] text-amber-400/80">Prueba hasta {b.trialEnd}</span>}
+                    {b.rawStatus === 'trial' && b.trialEnd && <span className="block text-xs text-amber-400/80">Prueba hasta {b.trialEnd}</span>}
                   </td>
                   <td className="px-4 py-3 text-xs">{alert}</td>
                 </tr>

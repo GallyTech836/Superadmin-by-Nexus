@@ -44,7 +44,7 @@ export function StatusBadge({ status }) {
 
 export function CapStatusBadge({ status, label }) {
   return (
-    <span className={`shrink-0 whitespace-nowrap rounded px-1.5 text-[10px] leading-4 font-medium ${CAP_STATUS_STYLES[status] || CAP_STATUS_STYLES.soon}`}>
+    <span className={`shrink-0 whitespace-nowrap rounded px-1.5 text-xs leading-4 font-medium ${CAP_STATUS_STYLES[status] || CAP_STATUS_STYLES.soon}`}>
       {label}
     </span>
   );
@@ -65,7 +65,7 @@ export function StatCard({ label, value, accent, icon: Icon, hint }) {
         {Icon && <span className={`shrink-0 rounded-md p-1.5 ${accents[accent]}`}><Icon size={14} /></span>}
       </div>
       <p className="mt-2 truncate text-xl font-semibold text-white">{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-slate-600">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>}
     </div>
   );
 }
@@ -208,7 +208,7 @@ export function LimitInput({ value, onChange, disabled, placeholder = 'Ilimitado
       value={value === null || value === undefined ? '' : value}
       onChange={(e) => onChange(e.target.value === '' ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))}
       placeholder={placeholder}
-      className="w-20 rounded-md border border-white/10 bg-slate-950 px-1.5 py-0.5 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-40"
+      className="w-20 rounded-md border border-white/10 bg-slate-950 px-1.5 py-0.5 text-xs text-white outline-none focus:border-indigo-500 disabled:opacity-40"
     />
   );
 }

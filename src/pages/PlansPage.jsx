@@ -190,7 +190,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-lg font-semibold text-white">{plan.name}</p>
-                    {plan.active === false && <span className="rounded-md bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">Inactivo</span>}
+                    {plan.active === false && <span className="rounded-md bg-slate-700/50 px-1.5 py-0.5 text-xs text-slate-400">Inactivo</span>}
                   </div>
                   <p className="text-sm text-slate-400">
                     {formatPrice(plan)} <span className="text-slate-600">· {BILLING_LABELS[plan.billingCycle] || plan.billingCycle}</span>
@@ -214,15 +214,15 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                   if (!caps.length) return null;
                   return (
                     <div key={mod.key}>
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-600">{mod.label}</p>
+                      <p className="mb-1 text-xs font-medium text-slate-600">{mod.label}</p>
                       {caps.map((cap) => {
                         const v = resolved[cap.key];
                         return (
                           <div key={cap.key} className="flex items-center justify-between py-0.5">
                             <span className={`text-xs ${v.enabled ? 'text-slate-300' : 'text-slate-600'}`}>
                               {cap.label}
-                              {cap.status === 'mock' && <span className="ml-1 text-[10px] text-amber-500/80">(maqueta, no operativa)</span>}
-                              {cap.status === 'partial' && <span className="ml-1 text-[10px] text-sky-400/80">(parcial)</span>}
+                              {cap.status === 'mock' && <span className="ml-1 text-xs text-amber-500/80">(maqueta, no operativa)</span>}
+                              {cap.status === 'partial' && <span className="ml-1 text-xs text-sky-400/80">(parcial)</span>}
                             </span>
                             {v.enabled ? (
                               <span className="flex items-center gap-1 text-xs text-emerald-400">
@@ -318,7 +318,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-slate-400">Capacidades incluidas, por módulo de Nexus</p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   <span className="text-emerald-400">{draftSummary.enabled} habilitadas</span>
                   {' · '}<span>{draftSummary.disabled} deshabilitadas</span>
                   {draftSummary.nonOperational.length > 0 && (
@@ -330,7 +330,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
               {/* Leyenda de estados */}
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
                 {Object.entries(CAPABILITY_STATUS).map(([key, st]) => (
-                  <span key={key} className="flex items-center gap-1.5 text-[11px] text-slate-500" title={STATUS_HELP[key]}>
+                  <span key={key} className="flex items-center gap-1.5 text-xs text-slate-500" title={STATUS_HELP[key]}>
                     <CapStatusBadge status={key} label={st.label} />
                     <span className="hidden sm:inline">{STATUS_HELP[key]}</span>
                   </span>
@@ -346,7 +346,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                     return (
                       <div key={cap.key} className="flex flex-wrap items-center gap-2 pl-5">
                         <span>"{cap.label}" necesita "{req.label}".</span>
-                        <button onClick={() => includeRequirement(req.key)} className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[11px] text-amber-200 hover:bg-amber-500/30">
+                        <button onClick={() => includeRequirement(req.key)} className="rounded bg-amber-500/20 px-1.5 py-0.5 text-xs text-amber-200 hover:bg-amber-500/30">
                           Incluir "{req.label}"
                         </button>
                       </div>
@@ -369,8 +369,8 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                         className={`flex w-full items-center gap-2 px-3 py-2 text-left ${isCollapsed ? '' : 'border-b border-white/5'}`}
                       >
                         {isCollapsed ? <ChevronRight size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
-                        <span className="flex-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">{mod.label}</span>
-                        <span className="text-[11px] text-slate-500">{enabledHere}/{caps.length}</span>
+                        <span className="flex-1 text-xs font-medium text-slate-400">{mod.label}</span>
+                        <span className="text-xs text-slate-500">{enabledHere}/{caps.length}</span>
                       </button>
                       {!isCollapsed && (
                       <div className="divide-y divide-white/5">
@@ -379,7 +379,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                             return (
                               <div key={cap.key} className="flex items-center justify-between px-3 py-1.5">
                                 <span className="text-xs text-slate-300">{cap.label}</span>
-                                <span className="text-[11px] text-slate-500">Siempre incluida</span>
+                                <span className="text-xs text-slate-500">Siempre incluida</span>
                               </div>
                             );
                           }
@@ -401,21 +401,21 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                                   <span className={`text-xs ${isQuota || r.enabled ? 'text-slate-200' : 'text-slate-500'}`}>{cap.label}</span>
                                   {cap.status !== 'implemented' && <CapStatusBadge status={cap.status} label={CAPABILITY_STATUS[cap.status].label} />}
                                   {!isQuota && (
-                                    <span className={`text-[10px] ${r.enabled ? 'text-emerald-400' : 'text-slate-600'}`}>
+                                    <span className={`text-xs ${r.enabled ? 'text-emerald-400' : 'text-slate-600'}`}>
                                       {r.enabled ? 'Habilitada' : 'Deshabilitada'}
                                     </span>
                                   )}
                                 </div>
                                 {cap.status === 'mock' && (
-                                  <p className="text-[11px] text-amber-500/80">Maqueta: la pantalla existe pero todavía no guarda datos reales.</p>
+                                  <p className="text-xs text-amber-500/80">Maqueta: la pantalla existe pero todavía no guarda datos reales.</p>
                                 )}
                                 {parent && (
-                                  <p className={`flex items-center gap-1 text-[11px] ${parentMissing && v.enabled ? 'text-amber-400' : 'text-slate-500'}`}>
+                                  <p className={`flex items-center gap-1 text-xs ${parentMissing && v.enabled ? 'text-amber-400' : 'text-slate-500'}`}>
                                     <Link2 size={11} /> Requiere "{parent.label}"{parentMissing && v.enabled ? ' — no está incluida' : ''}
                                   </p>
                                 )}
                                 {dependents.length > 0 && (
-                                  <p className={`text-[11px] ${lostDependents.length ? 'text-amber-400' : 'text-slate-600'}`}>
+                                  <p className={`text-xs ${lostDependents.length ? 'text-amber-400' : 'text-slate-600'}`}>
                                     {lostDependents.length
                                       ? `Al no incluirla se desactivan: ${lostDependents.map((d) => d.label).join(', ')}`
                                       : `Necesaria para: ${dependents.map((d) => d.label).join(', ')}`}
@@ -424,7 +424,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                               </div>
                               {cap.limit && (isQuota || v.enabled) && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-slate-500">Límite {cap.limit.unit}</span>
+                                  <span className="text-xs text-slate-500">Límite {cap.limit.unit}</span>
                                   <LimitInput value={v.limit} onChange={(n) => setCap(cap.key, { limit: n })} />
                                 </div>
                               )}
@@ -438,7 +438,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 })}
 
                 <div className="rounded-xl border border-dashed border-white/10">
-                  <button onClick={() => setShowSoon((s) => !s)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <button onClick={() => setShowSoon((s) => !s)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-500">
                     {showSoon ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     Pendientes ({soonCaps.length}) — solo planificación, no se pueden activar
                   </button>
@@ -453,7 +453,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                   )}
                 </div>
               </div>
-              <p className="mt-2 text-[11px] text-slate-600">Límite vacío = ilimitado. Los cambios se aplican en tiempo real a todos los negocios con este plan (backend: máx. 60 s).</p>
+              <p className="mt-2 text-xs text-slate-600">Límite vacío = ilimitado. Los cambios se aplican en tiempo real a todos los negocios con este plan (backend: máx. 60 s).</p>
             </div>
 
             <button

@@ -55,15 +55,15 @@ export default function TerminologyEditor({ business, onSave, busy }) {
   return (
     <div className="border-t border-white/5 pt-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Terminología</p>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-xs font-medium text-slate-500">Terminología</p>
+        <p className="text-xs text-slate-600">
           Predeterminada del tipo <span className="text-slate-400">{profile.label}</span>. Solo cambia textos, no datos ni capacidades.
         </p>
       </div>
       <div className="overflow-x-auto rounded-xl border border-white/5">
         <table className="w-full min-w-[560px] text-left text-xs">
           <thead>
-            <tr className="border-b border-white/5 text-[10px] uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-white/5 text-xs text-slate-500">
               <th className="px-3 py-2 font-medium">Concepto</th>
               <th className="px-3 py-2 font-medium">Predeterminado</th>
               <th className="px-3 py-2 font-medium">En uso</th>
@@ -107,29 +107,29 @@ export default function TerminologyEditor({ business, onSave, busy }) {
                           <option value="m">{GENDER_LABELS.m}</option>
                           <option value="f">{GENDER_LABELS.f}</option>
                         </select>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           Ej.: {row.gender === 'f' ? 'Nueva' : 'Nuevo'} {row.singular || '…'}
                         </span>
                       </div>
                     ) : (
                       <span className="text-white">
                         {effective.terminology[concept]} / {effective.terminology[`${concept}s`]}
-                        {isCustom && <span className="ml-2 rounded bg-indigo-500/15 px-1.5 text-[10px] text-indigo-300">Personalizado</span>}
+                        {isCustom && <span className="ml-2 rounded bg-indigo-500/15 px-1.5 text-xs text-indigo-300">Personalizado</span>}
                       </span>
                     )}
-                    {isEditing && error && <p className="mt-1 text-[11px] text-red-400">{error}</p>}
+                    {isEditing && error && <p className="mt-1 text-xs text-red-400">{error}</p>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     {isEditing ? (
                       <div className="flex justify-end gap-2">
-                        <button onClick={saveRow} disabled={busy} className="rounded-md bg-indigo-500 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-600 disabled:opacity-50">Guardar</button>
+                        <button onClick={saveRow} disabled={busy} className="rounded-md bg-indigo-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-600 disabled:opacity-50">Guardar</button>
                         <button onClick={() => setEditing(null)} className="rounded-md p-1 text-slate-500 hover:text-white" aria-label="Cancelar"><X size={14} /></button>
                       </div>
                     ) : (
                       <div className="flex justify-end gap-3">
-                        <button onClick={() => startEdit(concept)} className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300"><Pencil size={12} /> Personalizar</button>
+                        <button onClick={() => startEdit(concept)} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"><Pencil size={12} /> Personalizar</button>
                         {isCustom && (
-                          <button onClick={() => resetRow(concept)} disabled={busy} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white disabled:opacity-50">
+                          <button onClick={() => resetRow(concept)} disabled={busy} className="flex items-center gap-1 text-xs text-slate-400 hover:text-white disabled:opacity-50">
                             <RotateCcw size={12} /> Restablecer
                           </button>
                         )}
@@ -143,7 +143,7 @@ export default function TerminologyEditor({ business, onSave, busy }) {
         </table>
       </div>
       {Object.keys(saved).length > 0 && (
-        <p className="mt-1.5 text-[11px] text-slate-600">Las personalizaciones se conservan aunque cambies el tipo de negocio.</p>
+        <p className="mt-1.5 text-xs text-slate-600">Las personalizaciones se conservan aunque cambies el tipo de negocio.</p>
       )}
     </div>
   );

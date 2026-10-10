@@ -314,7 +314,7 @@ export default function BusinessDetail({
       {tab === 'resumen' && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Información</p>
+            <p className="text-xs font-medium text-slate-500">Información</p>
             {!editingInfo ? (
               <button onClick={startEditInfo} className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300"><Pencil size={12} /> Editar</button>
             ) : (
@@ -333,7 +333,7 @@ export default function BusinessDetail({
                 {BUSINESS_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
               </SelectField>
               {Object.keys(business.terminologyOverrides || {}).length > 0 && infoForm.businessType !== resolveBusinessType(business.businessType) && (
-                <p className="col-span-2 text-[11px] text-amber-400/80">Cambias el tipo: las personalizaciones de terminología de este negocio se conservan.</p>
+                <p className="col-span-2 text-xs text-amber-400/80">Cambias el tipo: las personalizaciones de terminología de este negocio se conservan.</p>
               )}
               <button onClick={saveInfo} disabled={busy} className="col-span-2 rounded-lg bg-indigo-500 py-2 text-sm font-medium text-white hover:bg-indigo-600">Guardar cambios</button>
             </div>
@@ -363,7 +363,7 @@ export default function BusinessDetail({
           {updateTerminology && <TerminologyEditor business={business} onSave={saveTerminology} busy={busy} />}
 
           <div className="border-t border-white/5 pt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Acciones</p>
+            <p className="mb-2 text-xs font-medium text-slate-500">Acciones</p>
             <div className="flex flex-wrap gap-2">
               {business.status !== 'active' && business.status !== 'suspended' && (
                 <ActionButton tone="emerald" icon={CheckCircle2} disabled={busy} onClick={() => changeStatus('active', 'Negocio activado')}>Activar</ActionButton>
@@ -394,7 +394,7 @@ export default function BusinessDetail({
                   </option>
                 ))}
               </select>
-              <span className="text-[11px] text-slate-600">Recalcula el vencimiento según el ciclo del plan.</span>
+              <span className="text-xs text-slate-600">Recalcula el vencimiento según el ciclo del plan.</span>
             </div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function BusinessDetail({
                 <col className="w-[14%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-white/5 text-[10px] uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-white/5 text-xs text-slate-500">
                   <th className="px-3 py-2 font-medium">Capacidad</th>
                   <th className="px-2 py-2 text-center font-medium">Plan / tipo</th>
                   <th className="px-2 py-2 font-medium">Excepción</th>
@@ -432,7 +432,7 @@ export default function BusinessDetail({
                 return (
                   <tbody key={mod.key} className="divide-y divide-white/5">
                     <tr className="bg-slate-950/60">
-                      <td colSpan={5} className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      <td colSpan={5} className="px-3 py-1.5 text-xs font-medium text-slate-500">
                         {mod.label}
                         {moduleHidden && <span className="ml-2 normal-case tracking-normal text-amber-400/80">No relevante para {businessProfile.label}</span>}
                       </td>
@@ -451,8 +451,8 @@ export default function BusinessDetail({
                               <span className="truncate text-slate-200">{cap.label}</span>
                               {cap.status !== 'implemented' && <CapStatusBadge status={cap.status} label={CAPABILITY_STATUS[cap.status].label} />}
                             </div>
-                            {r.blockedBy && <p className="text-[10px] text-slate-500">Requiere "{getCapability(r.blockedBy).label}"</p>}
-                            {r.source === 'profile' && <p className="text-[10px] text-amber-400/80">Restringida por el tipo de negocio</p>}
+                            {r.blockedBy && <p className="text-xs text-slate-500">Requiere "{getCapability(r.blockedBy).label}"</p>}
+                            {r.source === 'profile' && <p className="text-xs text-amber-400/80">Restringida por el tipo de negocio</p>}
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             {cap.kind === 'quota' ? <span className="text-slate-400">{limitText(cap, planVal.limit)}</span> : (
@@ -467,7 +467,7 @@ export default function BusinessDetail({
                               <select
                                 value={enabledMode}
                                 onChange={(e) => setOverride(cap.key, { enabled: e.target.value === 'inherit' ? undefined : e.target.value === 'on' })}
-                                className={`w-full rounded-md border bg-slate-950 px-1.5 py-0.5 text-[11px] outline-none ${enabledMode === 'inherit' ? 'border-white/10 text-slate-400' : 'border-indigo-500/50 text-indigo-300'}`}
+                                className={`w-full rounded-md border bg-slate-950 px-1.5 py-0.5 text-xs outline-none ${enabledMode === 'inherit' ? 'border-white/10 text-slate-400' : 'border-indigo-500/50 text-indigo-300'}`}
                               >
                                 <option value="inherit">Heredar</option>
                                 <option value="on">Activar</option>
@@ -482,7 +482,7 @@ export default function BusinessDetail({
                                 {hasLimitOverride ? (
                                   <LimitInput value={o.limit ?? null} onChange={(n) => setOverride(cap.key, { limit: n })} />
                                 ) : (
-                                  <span className="text-[11px] text-slate-500">Del plan</span>
+                                  <span className="text-xs text-slate-500">Del plan</span>
                                 )}
                               </div>
                             )}
@@ -494,7 +494,7 @@ export default function BusinessDetail({
                                 {cap.limit && r.enabled && <span className="ml-1 text-slate-300">{limitText(cap, r.limit)}</span>}
                               </>
                             )}
-                            {isOverridden && <span className="ml-1 text-[10px] text-indigo-400">●</span>}
+                            {isOverridden && <span className="ml-1 text-xs text-indigo-400">●</span>}
                           </td>
                         </tr>
                       );
@@ -504,7 +504,7 @@ export default function BusinessDetail({
               })}
             </table>
           </div>
-          <p className="text-[11px] text-slate-600"><span className="text-indigo-400">●</span> = modificado con excepción. Pasa el cursor sobre el resultado para ver de dónde viene.</p>
+          <p className="text-xs text-slate-600"><span className="text-indigo-400">●</span> = modificado con excepción. Pasa el cursor sobre el resultado para ver de dónde viene.</p>
           <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-white/5 bg-slate-900 pt-3">
             <button onClick={saveOverrides} disabled={busy || !draftDirty} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-40">
               Guardar excepciones
@@ -519,7 +519,7 @@ export default function BusinessDetail({
                 Quitar todas las excepciones
               </button>
             )}
-            <span className="text-[11px] text-slate-600">Nexus se actualiza al instante; el backend en máx. 60 s.</span>
+            <span className="text-xs text-slate-600">Nexus se actualiza al instante; el backend en máx. 60 s.</span>
           </div>
         </div>
       )}
@@ -537,7 +537,7 @@ export default function BusinessDetail({
           <div className="overflow-hidden rounded-xl border border-white/5">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-white/5 text-[10px] uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-white/5 text-xs text-slate-500">
                   <th className="px-3 py-2 font-medium">Capacidad</th>
                   <th className="px-3 py-2 font-medium">Límite</th>
                   <th className="px-3 py-2 font-medium">Consumo</th>
@@ -555,7 +555,7 @@ export default function BusinessDetail({
                     <tr key={cap.key}>
                       <td className="px-3 py-2 text-white">
                         {cap.label}
-                        <p className="text-[10px] text-slate-600">{cap.limit.period === 'month' ? 'Mensual' : 'Cantidad actual'}{!r.enabled ? ' · no incluido' : ''}</p>
+                        <p className="text-xs text-slate-600">{cap.limit.period === 'month' ? 'Mensual' : 'Cantidad actual'}{!r.enabled ? ' · no incluido' : ''}</p>
                       </td>
                       <td className="px-3 py-2 text-slate-300">{limitText(cap, r.limit)}</td>
                       <td className="px-3 py-2 text-slate-300">{used ?? '…'}</td>
@@ -569,7 +569,7 @@ export default function BusinessDetail({
                       </td>
                       <td className="px-3 py-2">
                         {st.overage > 0 ? <span className="text-red-400">+{st.overage}</span> : <span className="text-slate-600">0</span>}
-                        {rejected > 0 && <p className="text-[10px] text-amber-400">{rejected} bloqueados por límite</p>}
+                        {rejected > 0 && <p className="text-xs text-amber-400">{rejected} bloqueados por límite</p>}
                       </td>
                     </tr>
                   );
@@ -577,7 +577,7 @@ export default function BusinessDetail({
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-xs text-slate-600">
             WhatsApp: cuenta cada mensaje enviado por el bot (negocios/{business.id}/uso/{usage.period}). Al llegar al límite el bot deja de responder y los
             mensajes entrantes se cuentan como "bloqueados por límite". Excedente = consumo por encima del límite (ej. si bajaste el límite a mitad de mes).
           </p>
@@ -587,7 +587,7 @@ export default function BusinessDetail({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm text-white">Verificar en el servidor</p>
-                <p className="text-[11px] text-slate-500">Pregunta a Railway qué permite realmente para este negocio (sin caché).</p>
+                <p className="text-xs text-slate-500">Pregunta a Railway qué permite realmente para este negocio (sin caché).</p>
               </div>
               <ActionButton icon={Server} onClick={verifyServer}>Verificar</ActionButton>
             </div>
@@ -642,7 +642,7 @@ export default function BusinessDetail({
                 <button onClick={saveTrialDates} disabled={busy} className="w-full rounded-lg bg-indigo-500 py-2 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">Guardar fechas</button>
               </div>
             </div>
-            <p className="mt-2 text-[11px] text-slate-600">Con estado "Prueba", al pasar la fecha de vencimiento el negocio queda Vencido automáticamente (Nexus y backend).</p>
+            <p className="mt-2 text-xs text-slate-600">Con estado "Prueba", al pasar la fecha de vencimiento el negocio queda Vencido automáticamente (Nexus y backend).</p>
           </div>
         </div>
       )}
@@ -659,7 +659,7 @@ export default function BusinessDetail({
               <KeyRound size={16} className="text-indigo-400" />
               <p className="text-sm font-medium text-white">Contraseña del administrador</p>
             </div>
-            <p className="mb-3 text-[11px] text-slate-500">
+            <p className="mb-3 text-xs text-slate-500">
               Cuenta: <span className="text-slate-300">{business.ownerEmail || '—'}</span>. Por seguridad la contraseña actual no se puede ver
               (Firebase solo guarda una versión cifrada). Aquí puedes poner una nueva: se muestra una sola vez para que se la pases al dueño.
             </p>
@@ -685,7 +685,7 @@ export default function BusinessDetail({
             {pwResult && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs">
                 <span className="text-emerald-200">
-                  Nueva contraseña de {pwResult.email}: <span className="font-mono text-white">{pwResult.password}</span>
+                  Nueva contraseña de {pwResult.email}: <span className="nx-num text-white">{pwResult.password}</span>
                 </span>
                 <button onClick={copyPassword} className="flex items-center gap-1 text-emerald-300 hover:text-white">
                   {pwCopied ? <Check size={14} /> : <Copy size={14} />} {pwCopied ? 'Copiado' : 'Copiar'}
@@ -706,8 +706,8 @@ export default function BusinessDetail({
                 onChange={(on) => updatePin({ enabled: on }, on ? 'PIN de Analítica activado' : 'PIN de Analítica desactivado', on ? 'bloqueo de Analítica activado' : 'bloqueo de Analítica desactivado')}
               />
             </div>
-            <p className="mb-3 text-[11px] text-slate-500">
-              Si está activo, en GallyFlow la sección Analítica pide el PIN antes de mostrar ingresos y comisiones (también lo valida el backend).
+            <p className="mb-3 text-xs text-slate-500">
+              Si está activo, en Nexus la sección Analítica pide el PIN antes de mostrar ingresos y comisiones (también lo valida el backend).
               PIN actual: <span className={business.hasFinancePin ? 'text-emerald-400' : 'text-amber-400'}>{business.hasFinancePin ? 'configurado' : 'sin configurar (el dueño lo crea al entrar)'}</span>.
             </p>
             <div className="flex flex-wrap items-end gap-2">
@@ -748,7 +748,7 @@ export default function BusinessDetail({
                 <p className="text-xs text-slate-500">{formatDateTime(a.createdAt) || a.date}</p>
               </div>
               <p className="mt-1 text-xs text-slate-400">{a.description}</p>
-              {a.actorEmail && <p className="mt-1 text-[10px] text-slate-600">por {a.actorEmail}</p>}
+              {a.actorEmail && <p className="mt-1 text-xs text-slate-600">por {a.actorEmail}</p>}
             </div>
           ))}
           {bizActivity.length === 0 && <p className="py-8 text-center text-sm text-slate-600">Sin actividad registrada para este negocio.</p>}

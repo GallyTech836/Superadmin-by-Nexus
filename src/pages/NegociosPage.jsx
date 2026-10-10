@@ -209,7 +209,7 @@ export default function NegociosPage({
               <p className="text-xs text-slate-500">Copia estos datos y pásaselos al dueño — no se van a volver a mostrar.</p>
               <div className="space-y-1 rounded-lg border border-white/10 bg-slate-950 p-4 text-left text-sm">
                 <p className="text-slate-400">Correo: <span className="text-white">{createdCreds.email}</span></p>
-                <p className="text-slate-400">Contraseña: <span className="font-mono text-white">{createdCreds.tempPassword}</span></p>
+                <p className="text-slate-400">Contraseña: <span className="nx-num text-white">{createdCreds.tempPassword}</span></p>
               </div>
               <button
                 onClick={copyCreds}
@@ -225,7 +225,7 @@ export default function NegociosPage({
           ) : (
             <div className="space-y-5">
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Información del negocio</p>
+                <p className="mb-2 text-xs font-medium text-slate-500">Información del negocio</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Nombre del negocio" value={form.name} onChange={(e) => updateForm('name', e.target.value)} />
                   <SelectField label="Tipo de negocio" value={form.businessType} onChange={(e) => updateForm('businessType', e.target.value)}>
@@ -237,7 +237,7 @@ export default function NegociosPage({
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Acceso del administrador</p>
+                <p className="mb-2 text-xs font-medium text-slate-500">Acceso del administrador</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Email (con esto va a hacer login en AdminApp)" type="email" value={form.ownerEmail} onChange={(e) => updateForm('ownerEmail', e.target.value)} />
                   <div>
@@ -257,10 +257,10 @@ export default function NegociosPage({
                     </div>
                   </div>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-600">Mínimo 6 caracteres. Si la dejas vacía se genera una. Se muestra una sola vez al crear.</p>
+                <p className="mt-1 text-xs text-slate-600">Mínimo 6 caracteres. Si la dejas vacía se genera una. Se muestra una sola vez al crear.</p>
               </div>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Suscripción</p>
+                <p className="mb-2 text-xs font-medium text-slate-500">Suscripción</p>
                 <div className="grid grid-cols-3 gap-3">
                   <SelectField label="Plan" value={form.plan} onChange={(e) => {
                     const p = plans.find((x) => x.id === e.target.value);
@@ -277,7 +277,7 @@ export default function NegociosPage({
                     <Field label="Días de prueba" type="number" min="1" value={form.trialDays} onChange={(e) => updateForm('trialDays', e.target.value)} />
                   )}
                 </div>
-                {plans.length === 0 && <p className="mt-1 text-[11px] text-amber-400">Todavía no creaste planes: el negocio usará las capacidades por defecto.</p>}
+                {plans.length === 0 && <p className="mt-1 text-xs text-amber-400">Todavía no creaste planes: el negocio usará las capacidades por defecto.</p>}
               </div>
               {createError && <p className="text-xs text-red-400">{createError}</p>}
               <button
