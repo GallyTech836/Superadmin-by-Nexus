@@ -22,10 +22,10 @@ const LoadingScreen = (
 function App() {
   const { user, loading, error, login, logout } = useSuperAdminAuth();
   const [page, setPage] = useState('dashboard');
-  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology } = useBusinesses();
+  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons } = useBusinesses();
   const { activity, pushActivity } = useActivity();
   const platformStats = usePlatformStats();
-  const { plans, createPlan, updatePlan: updatePlanDef, deletePlan } = usePlans();
+  const { plans, createPlan, updatePlan: updatePlanDef, deletePlan, setPlanActive, seedLaunchPlans } = usePlans();
 
   // Menú lateral: se cierra con X y se abre con ☰ (se recuerda la elección).
   // En pantallas chicas se muestra encima del contenido y se cierra solo al
@@ -58,10 +58,10 @@ function App() {
 
   const pages = {
     dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} />,
-    negocios: <NegociosPage businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} pushActivity={pushActivity} />,
+    negocios: <NegociosPage businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} pushActivity={pushActivity} />,
     administradores: <AdminsPage businesses={businesses} />,
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
-    planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} pushActivity={pushActivity} />,
+    planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} setPlanActive={setPlanActive} seedLaunchPlans={seedLaunchPlans} pushActivity={pushActivity} />,
     actividad: <ActivityPage activity={activity} businesses={businesses} />,
     configuracion: <SettingsPage userEmail={user.email} businessCount={businesses.length} />,
   };

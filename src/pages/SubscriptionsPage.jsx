@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { StatusBadge, Modal, daysRemaining } from '../components/common';
 import { computeSubscriptionEnd } from '../data/planFeatures';
+import { isPlanCompatible } from '../shared/capabilityModel';
+import { getBusinessProfile } from '../shared/businessProfileModel';
 
 export default function SubscriptionsPage({ businesses, plans, updatePlan, updateSubscriptionEnd, pushActivity }) {
   const [editing, setEditing] = useState(null);
@@ -105,7 +107,10 @@ export default function SubscriptionsPage({ businesses, plans, updatePlan, updat
               <p className="mb-2 text-xs text-slate-500">Plan</p>
               <div className="flex flex-wrap gap-2">
                 {plans.length === 0 && <span className="text-xs text-slate-600">Sin planes creados todavía</span>}
-                {plans.map((p) => (
+                {plans
+                  // Solo planes activos y del mismo tipo de negocio (el actual siempre se muestra).
+                  .filter((p) => p.id === editing.plan || (p.active !== false && isPlanCompatible(p, getBusinessProfile(editing.businessType).vertical)))
+                  .map((p) => (
                   <button
                     key={p.id}
                     onClick={() => changePlan(p.id)}

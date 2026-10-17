@@ -9,6 +9,7 @@ import {
 } from './common';
 import {
   CAPABILITIES, CAPABILITY_MODULES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
+  ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons,
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
@@ -60,7 +61,7 @@ function ActionButton({ onClick, tone = 'indigo', icon: Icon, children, disabled
 
 export default function BusinessDetail({
   business, plans, activity = [], onClose, initialTab = 'resumen',
-  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, pushActivity,
+  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
 }) {
   const [tab, setTab] = useState(initialTab);
   const plan = plans.find((p) => p.id === business.plan) || null;
@@ -85,17 +86,18 @@ export default function BusinessDetail({
   const businessProfile = getBusinessProfile(business.businessType);
   const profileDefaults = businessProfile.capabilityDefaults || null;
   const relevantModules = businessProfile.modules || null;
+  const addons = business.addons || null;
   const resolvedSaved = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules }),
-    [plan, business.capabilityOverrides, profileDefaults, relevantModules],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules, addons }),
+    [plan, business.capabilityOverrides, profileDefaults, relevantModules, addons],
   );
   const resolvedPlan = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules }),
-    [plan, profileDefaults, relevantModules],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules, addons }),
+    [plan, profileDefaults, relevantModules, addons],
   );
   const resolvedDraft = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults, relevantModules }),
-    [plan, draft, profileDefaults, relevantModules],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults, relevantModules, addons }),
+    [plan, draft, profileDefaults, relevantModules, addons],
   );
   const overrideCount = Object.keys(cleanOverrides(business.capabilityOverrides)).length;
   const activeCount = CAPABILITIES.filter((c) => c.status !== 'soon' && resolvedSaved[c.key].enabled).length;
@@ -154,18 +156,56 @@ export default function BusinessDetail({
     });
   }
 
+  // Si el plan nuevo permite menos de lo que el negocio ya tiene, NO se borra
+  // nada: solo se bloquean altas nuevas hasta cumplir el límite.
+  function exceededWith(nextPlan) {
+    const r = resolveCapabilities({
+      planFeatures: nextPlan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules, addons,
+    });
+    return ['profesionales', 'sucursales']
+      .map((key) => ({ key, limit: r[key].limit, used: usage.counts[key] }))
+      .filter((x) => typeof x.limit === 'number' && typeof x.used === 'number' && x.used > x.limit);
+  }
+
   async function changePlan(planId) {
     if (planId === (business.plan || '')) return;
     const next = plans.find((p) => p.id === planId) || null;
+    const exceeded = exceededWith(next);
+    if (exceeded.length) {
+      const detail = exceeded.map((x) => `${x.key}: tiene ${x.used}, el plan permite ${x.limit}`).join('\n');
+      const ok = window.confirm(`${business.name} supera los límites de "${next?.name || 'Sin plan'}":\n${detail}\n\nNo se eliminará nada. No podrá registrar nuevos hasta cumplir el límite o ampliar su capacidad. ¿Cambiar de todos modos?`);
+      if (!ok) return;
+    }
     await run(async () => {
       await updatePlan(business.id, planId || null);
       const newEnd = computeSubscriptionEnd(next);
       await updateSubscriptionEnd(business.id, newEnd);
-      await pushActivity('Plan cambiado', `${business.name} cambió de plan ${planName} a ${next?.name || 'Sin plan'}`, {
+      const excedeTxt = exceeded.length ? ` (excede: ${exceeded.map((x) => `${x.key} ${x.used}/${x.limit}`).join(', ')}; se conservan los datos)` : '';
+      await pushActivity('Plan cambiado', `${business.name} cambió de plan ${planName} a ${next?.name || 'Sin plan'}${excedeTxt}`, {
         negocioId: business.id, planId: planId || null,
         before: { plan: business.plan, subscriptionEnd: business.subscriptionEnd },
         after: { plan: planId || null, subscriptionEnd: newEnd },
       });
+    });
+  }
+
+  // ── Complementos (aparte del plan) ──
+  const [addonsForm, setAddonsForm] = useState(normalizeAddons(business.addons));
+  const addonsKey = JSON.stringify(normalizeAddons(business.addons));
+  useEffect(() => { setAddonsForm(JSON.parse(addonsKey)); }, [addonsKey]);
+  const addonsDirty = JSON.stringify(normalizeAddons(addonsForm)) !== addonsKey;
+  const monthly = computeMonthlyTotal(plan, business.addons);
+  const monthlyDraft = computeMonthlyTotal(plan, addonsForm);
+
+  async function saveAddons() {
+    const before = normalizeAddons(business.addons);
+    const after = normalizeAddons(addonsForm);
+    await run(async () => {
+      await updateAddons(business.id, after);
+      const parts = [];
+      if (before.profesionalesExtra !== after.profesionalesExtra) parts.push(`Profesionales adicionales: ${before.profesionalesExtra} → ${after.profesionalesExtra}`);
+      if (before.asistenteWhatsapp !== after.asistenteWhatsapp) parts.push(`Asistente de WhatsApp: ${after.asistenteWhatsapp ? 'contratado' : 'quitado'}`);
+      await pushActivity('Complementos actualizados', `${business.name}: ${parts.join('; ') || 'sin cambios'}`, { negocioId: business.id, before, after });
     });
   }
 
@@ -351,8 +391,20 @@ export default function BusinessDetail({
               <Info label="Estado"><StatusBadge status={business.status} /></Info>
               <Info label="Vencimiento">{business.subscriptionEnd ? `${business.subscriptionEnd} (${daysRemaining(business.subscriptionEnd)} d)` : '—'}</Info>
               <Info label="Prueba">{business.trialEnd ? `${trialState} · hasta ${business.trialEnd}` : trialState}</Info>
-              <Info label="Profesionales">{usage.counts.profesionales ?? '…'} <span className="text-xs text-slate-500">/ {limitText(getCapability('profesionales'), resolvedSaved.profesionales.limit)}</span></Info>
-              <Info label="Sucursales">{usage.counts.sucursales ?? '…'} <span className="text-xs text-slate-500">/ {limitText(getCapability('sucursales'), resolvedSaved.sucursales.limit)}</span></Info>
+              {['profesionales', 'sucursales'].map((key) => {
+                const lim = resolvedSaved[key].limit;
+                const used = usage.counts[key];
+                const over = typeof lim === 'number' && typeof used === 'number' && used > lim;
+                const full = typeof lim === 'number' && typeof used === 'number' && used >= lim;
+                return (
+                  <Info key={key} label={key === 'profesionales' ? 'Profesionales' : 'Sucursales'}>
+                    {used ?? '…'} <span className="text-xs text-slate-500">/ {limitText(getCapability(key), lim)}</span>
+                    {over && <span className="block text-xs text-amber-400">Excede el límite: no puede registrar más (datos conservados)</span>}
+                    {!over && full && <span className="block text-xs text-slate-500">Cupo completo</span>}
+                  </Info>
+                );
+              })}
+              <Info label="Total mensual">{monthly.currency} {monthly.total.toLocaleString('es-BO')}</Info>
               <Info label="Capacidades activas">{activeCount} <span className="text-xs text-slate-500">· {overrideCount} excepciones</span></Info>
               <Info label="WhatsApp este mes">
                 {resolvedSaved.asistenteWhatsapp.enabled ? `${waUsage.used} / ${limitText(whatsappCap, waUsage.limit)}` : <span className="text-slate-500">No incluido</span>}
@@ -387,16 +439,72 @@ export default function BusinessDetail({
                 onChange={(e) => changePlan(e.target.value)}
                 className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
               >
-                <option value="">Sin plan (valores por defecto)</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id} disabled={p.active === false && p.id !== business.plan}>
-                    {p.name}{p.active === false ? ' (inactivo)' : ''}
-                  </option>
-                ))}
+                <option value="">Sin plan (mínimo: 2 profesionales, 1 sucursal)</option>
+                {plans.map((p) => {
+                  const compatible = isPlanCompatible(p, businessProfile.vertical);
+                  return (
+                    <option key={p.id} value={p.id} disabled={(p.active === false || !compatible) && p.id !== business.plan}>
+                      {p.name}{p.active === false ? ' (inactivo)' : ''}{!compatible ? ' (otro tipo de negocio)' : ''}
+                    </option>
+                  );
+                })}
               </select>
-              <span className="text-xs text-slate-600">Recalcula el vencimiento según el ciclo del plan.</span>
+              <span className="text-xs text-slate-600">Recalcula el vencimiento según el ciclo del plan. No reinicia la prueba gratuita.</span>
             </div>
           </div>
+
+          {/* Complementos: se contratan aparte del plan (cobro manual) */}
+          {updateAddons && (
+            <div className="border-t border-white/5 pt-4">
+              <p className="mb-2 text-xs font-medium text-slate-500">Complementos</p>
+              <div className="space-y-2">
+                {ADDONS.map((a) => {
+                  const offer = getAddonOffer(plan, a.key);
+                  const current = a.kind === 'quantity' ? addonsForm[a.businessField] > 0 : addonsForm[a.businessField] === true;
+                  const unavailable = !plan || !offer.available;
+                  return (
+                    <div key={a.key} className="flex flex-wrap items-center gap-3">
+                      {a.kind === 'quantity' ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max={a.max}
+                          disabled={busy || (unavailable && !current)}
+                          value={addonsForm[a.businessField]}
+                          onChange={(e) => setAddonsForm((f) => ({ ...f, [a.businessField]: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))}
+                          className="w-16 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-white outline-none focus:border-indigo-500 disabled:opacity-40"
+                        />
+                      ) : (
+                        <Toggle value={!!addonsForm[a.businessField]} onChange={(on) => { if (!unavailable || !on) setAddonsForm((f) => ({ ...f, [a.businessField]: on })); }} />
+                      )}
+                      <span className="min-w-0 flex-1 text-xs text-slate-300">
+                        {a.label}
+                        <span className="ml-1 text-slate-500">
+                          {plan ? `${plan.currency || 'Bs'} ${offer.price}/mes${a.kind === 'quantity' ? ` por ${a.unit}` : ''}` : ''}
+                          {unavailable ? ' · no disponible en este plan' : ''}
+                        </span>
+                        {a.key === 'asistenteWhatsapp' && addonsForm.asistenteWhatsapp && !resolvedSaved.asistenteWhatsapp.enabled && !addonsDirty && (
+                          <span className="block text-amber-400/80">Contratado, pero no activo: lo bloquea una excepción o el tipo de negocio.</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-slate-400">
+                  Total mensual estimado: <b className="text-white">{monthlyDraft.currency} {monthlyDraft.total.toLocaleString('es-BO')}</b>
+                  {addonsDirty && <span className="text-slate-500"> (antes {monthly.currency} {monthly.total.toLocaleString('es-BO')})</span>}
+                  <span className="text-slate-600"> · cobro manual</span>
+                </p>
+                {addonsDirty && (
+                  <button onClick={saveAddons} disabled={busy} className="ml-auto rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
+                    Guardar complementos
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -404,7 +512,7 @@ export default function BusinessDetail({
       {tab === 'capacidades' && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">
-            Prioridad: <b className="text-slate-300">Excepción del negocio</b> &gt; <b className="text-slate-300">Plan ({planName})</b> &gt; valor por defecto.
+            Prioridad: <b className="text-slate-300">Excepción del negocio</b> &gt; tipo de negocio (solo restringe) &gt; <b className="text-slate-300">Plan ({planName}) + complementos</b> &gt; valor por defecto.
             Las excepciones no cambian el plan.
           </p>
           <div className="overflow-x-auto rounded-xl border border-white/5">

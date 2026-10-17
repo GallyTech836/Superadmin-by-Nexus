@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { computeEffectiveStatus, cleanOverrides } from '../shared/capabilityModel';
+import { computeEffectiveStatus, cleanOverrides, normalizeAddons } from '../shared/capabilityModel';
 import { isValidBusinessType, cleanTerminologyOverrides } from '../shared/businessProfileModel';
 
 // Muchos negocios existentes se auto-crearon vía useNegocio.js en GallyFlow
@@ -37,6 +37,8 @@ function normalize(id, data) {
     trialEnd,
     trialDays: data.trialDays || null,
     capabilityOverrides: data.capabilityOverrides || {},
+    // Complementos contratados aparte del plan (profesionales extra, WhatsApp).
+    addons: normalizeAddons(data.addons),
     adminUid: data.adminUid || null,
     assistantConfig: data.assistantConfig || null,
     analyticsPinEnabled: data.analyticsPinEnabled === true,
@@ -88,6 +90,11 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), { capabilityOverrides: cleanOverrides(overrides) });
   }
 
+  /** Complementos contratados: { profesionalesExtra, asistenteWhatsapp }. */
+  async function updateAddons(id, addons) {
+    await updateDoc(doc(db, 'negocios', id), { addons: normalizeAddons(addons) });
+  }
+
   /** Reemplaza la terminología personalizada del negocio ({} = predeterminada). */
   async function updateTerminology(id, overrides) {
     await updateDoc(doc(db, 'negocios', id), { terminologyOverrides: cleanTerminologyOverrides(overrides) });
@@ -104,5 +111,5 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), patch);
   }
 
-  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology };
+  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons };
 }

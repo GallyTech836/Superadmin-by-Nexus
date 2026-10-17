@@ -4,8 +4,8 @@ import { StatusBadge, Modal, Field, SelectField, STATUS_LABELS } from '../compon
 import BusinessDetail from '../components/BusinessDetail';
 import { createBusiness } from '../data/superadminApi';
 import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
-import { cleanOverrides } from '../shared/capabilityModel';
-import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, getBusinessTypeLabel } from '../shared/businessProfileModel';
+import { cleanOverrides, isPlanCompatible } from '../shared/capabilityModel';
+import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, getBusinessTypeLabel, getBusinessProfile } from '../shared/businessProfileModel';
 
 const emptyForm = {
   name: '', businessType: DEFAULT_BUSINESS_TYPE, ownerName: '', phone: '', country: 'Bolivia', city: '',
@@ -13,7 +13,7 @@ const emptyForm = {
 };
 
 export default function NegociosPage({
-  businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, pushActivity,
+  businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
 }) {
   function planName(planId) {
     return plans.find((p) => p.id === planId)?.name || 'Sin plan';
@@ -103,6 +103,7 @@ export default function NegociosPage({
         updateOverrides={updateOverrides}
         updateTrial={updateTrial}
         updateTerminology={updateTerminology}
+        updateAddons={updateAddons}
         pushActivity={pushActivity}
       />
     );
@@ -266,8 +267,10 @@ export default function NegociosPage({
                     const p = plans.find((x) => x.id === e.target.value);
                     setForm((f) => ({ ...f, plan: e.target.value, trialDays: p?.trialDays || f.trialDays }));
                   }}>
-                    <option value="">Sin plan (por defecto)</option>
-                    {activePlans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <option value="">Sin plan (mínimo: 2 profesionales, 1 sucursal)</option>
+                    {activePlans
+                      .filter((p) => isPlanCompatible(p, getBusinessProfile(form.businessType).vertical))
+                      .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </SelectField>
                   <SelectField label="Estado" value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
                     <option value="trial">Prueba</option>

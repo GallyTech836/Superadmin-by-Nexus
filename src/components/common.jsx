@@ -22,6 +22,7 @@ export const SOURCE_LABELS = {
   core: 'Base',
   override: 'Excepción',
   plan: 'Plan',
+  addon: 'Complemento',
   profile: 'Tipo de negocio',
   default: 'Por defecto',
   soon: 'Próximamente',

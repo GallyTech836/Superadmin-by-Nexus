@@ -3,6 +3,13 @@ import {
 } from 'lucide-react';
 import { StatCard, StatusBadge } from '../components/common';
 import { monthlyPrice } from '../data/planFeatures';
+import { computeMonthlyTotal } from '../shared/capabilityModel';
+
+// Complementos contratados (profesionales extra, WhatsApp): siempre mensuales.
+function addonsMonthly(plan, addons) {
+  if (!plan) return 0;
+  return computeMonthlyTotal(plan, addons).total - (Number(plan.price) || 0);
+}
 
 const NEW_DAYS = 30;
 
@@ -33,7 +40,7 @@ export default function DashboardPage({ businesses, plans, platformStats }) {
   // activos que pagan (no prueba, no bloqueados).
   const mrr = businesses
     .filter((b) => b.status === 'active' && !isTrial(b))
-    .reduce((acc, b) => acc + monthlyPrice(planById[b.plan]), 0);
+    .reduce((acc, b) => acc + monthlyPrice(planById[b.plan]) + addonsMonthly(planById[b.plan], b.addons), 0);
 
   const byPlan = {};
   for (const b of businesses) {
@@ -67,7 +74,7 @@ export default function DashboardPage({ businesses, plans, platformStats }) {
         <StatCard label="Sucursales" value={platformStats.branches ?? '…'} icon={MapPin} accent="indigo" />
         <StatCard label="Clientes" value={platformStats.clients ?? '…'} icon={UserRound} accent="indigo" />
         <StatCard label="Citas del mes" value={platformStats.periodAppointments ?? '…'} icon={Calendar} accent="indigo" hint={`Total histórico: ${platformStats.appointments ?? '…'}`} />
-        <StatCard label="MRR estimado" value={fmtMoney(mrr)} icon={TrendingUp} accent="emerald" hint="Según precio de los planes de negocios activos" />
+        <StatCard label="MRR estimado" value={fmtMoney(mrr)} icon={TrendingUp} accent="emerald" hint="Planes + complementos de negocios activos" />
         <StatCard label="Facturación de negocios (mes)" value={fmtMoney(platformStats.periodRevenue)} icon={Wallet} accent="emerald" hint="Suma de citas completadas" />
       </div>
 
