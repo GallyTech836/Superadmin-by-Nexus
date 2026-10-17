@@ -42,12 +42,24 @@ export function useBusinessUsage(negocioId, period = usagePeriodKey()) {
         countCollection(collection(db, 'negocios', negocioId, 'sucursales')),
       ]);
       setCounts({ profesionales, sucursales });
+      return { profesionales, sucursales };
     } catch (err) {
       setError(err.message);
+      return null;
     }
   }, [negocioId]);
 
-  useEffect(() => { refreshCounts(); }, [refreshCounts]);
+  // Conteo EN VIVO: si el negocio agrega o elimina profesionales/sucursales
+  // mientras el detalle está abierto, el "Excede el límite" se actualiza solo.
+  useEffect(() => {
+    if (!negocioId) return undefined;
+    const unsubs = ['profesionales', 'sucursales'].map((key) => onSnapshot(
+      collection(db, 'negocios', negocioId, key),
+      (snap) => setCounts((c) => ({ ...c, [key]: snap.size })),
+      () => refreshCounts(), // sin permiso de escucha: conteo puntual
+    ));
+    return () => unsubs.forEach((u) => u());
+  }, [negocioId, refreshCounts]);
 
   /** Consumo actual de una capacidad según su definición en el catálogo. */
   function usedFor(cap) {

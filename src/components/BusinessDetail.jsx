@@ -13,6 +13,7 @@ import {
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
+import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
 import TerminologyEditor from './TerminologyEditor';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
@@ -27,7 +28,7 @@ const TABS = [
 ];
 
 const mark = (on) => (on ? <span className="text-emerald-400">✓</span> : <span className="text-slate-600">✗</span>);
-const limitText = (cap, n) => (n === null || n === undefined ? 'Ilimitado' : `${n}${cap.limit?.period === 'month' ? '/mes' : ''}`);
+const limitText = (cap, n) => (n === null || n === undefined ? 'Ilimitado' : `${n}${cap.limit?.period === 'month' ? '/mes' : ''}${cap.limit?.perClient ? ' por cliente' : ''}`);
 
 function previousPeriod(period) {
   const [y, m] = period.split('-').map(Number);
@@ -158,19 +159,21 @@ export default function BusinessDetail({
 
   // Si el plan nuevo permite menos de lo que el negocio ya tiene, NO se borra
   // nada: solo se bloquean altas nuevas hasta cumplir el límite.
-  function exceededWith(nextPlan) {
+  function exceededWith(nextPlan, counts = usage.counts) {
     const r = resolveCapabilities({
       planFeatures: nextPlan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules, addons,
     });
     return ['profesionales', 'sucursales']
-      .map((key) => ({ key, limit: r[key].limit, used: usage.counts[key] }))
+      .map((key) => ({ key, limit: r[key].limit, used: counts[key] }))
       .filter((x) => typeof x.limit === 'number' && typeof x.used === 'number' && x.used > x.limit);
   }
 
   async function changePlan(planId) {
     if (planId === (business.plan || '')) return;
     const next = plans.find((p) => p.id === planId) || null;
-    const exceeded = exceededWith(next);
+    // Conteo fresco del servidor (no el que se cargó al abrir el detalle).
+    const fresh = await usage.refreshCounts();
+    const exceeded = exceededWith(next, fresh || usage.counts);
     if (exceeded.length) {
       const detail = exceeded.map((x) => `${x.key}: tiene ${x.used}, el plan permite ${x.limit}`).join('\n');
       const ok = window.confirm(`${business.name} supera los límites de "${next?.name || 'Sin plan'}":\n${detail}\n\nNo se eliminará nada. No podrá registrar nuevos hasta cumplir el límite o ampliar su capacidad. ¿Cambiar de todos modos?`);
@@ -344,7 +347,10 @@ export default function BusinessDetail({
   const bizActivity = activity.filter((a) => a.negocioId === business.id || (!a.negocioId && a.description?.includes(business.name))).slice(0, 50);
   const limitedCaps = CAPABILITIES.filter((c) => c.limit && c.status !== 'soon');
   const whatsappCap = getCapability('asistenteWhatsapp');
-  const waUsage = usageStatus(resolvedSaved.asistenteWhatsapp.limit, usage.usedFor(whatsappCap));
+  // WhatsApp: el límite es POR CLIENTE; el total del negocio es solo informativo.
+  const waUsage = usageStatus(whatsappCap.limit.perClient ? null : resolvedSaved.asistenteWhatsapp.limit, usage.usedFor(whatsappCap));
+  const waClientLimit = resolvedSaved.asistenteWhatsapp.limit;
+  const waClients = useWhatsappClients(business.id, usage.period, waClientLimit, tab === 'consumo');
 
   return (
     <DetailPage title={business.name} subtitle={`${business.id} · ${business.ownerEmail}`} onBack={onClose}>
@@ -407,7 +413,9 @@ export default function BusinessDetail({
               <Info label="Total mensual">{monthly.currency} {monthly.total.toLocaleString('es-BO')}</Info>
               <Info label="Capacidades activas">{activeCount} <span className="text-xs text-slate-500">· {overrideCount} excepciones</span></Info>
               <Info label="WhatsApp este mes">
-                {resolvedSaved.asistenteWhatsapp.enabled ? `${waUsage.used} / ${limitText(whatsappCap, waUsage.limit)}` : <span className="text-slate-500">No incluido</span>}
+                {resolvedSaved.asistenteWhatsapp.enabled
+                  ? <>{waUsage.used} respuestas <span className="text-xs text-slate-500">· máx. {limitText(whatsappCap, resolvedSaved.asistenteWhatsapp.limit)}</span></>
+                  : <span className="text-slate-500">No incluido</span>}
               </Info>
             </div>
           )}
@@ -481,6 +489,7 @@ export default function BusinessDetail({
                         {a.label}
                         <span className="ml-1 text-slate-500">
                           {plan ? `${plan.currency || 'Bs'} ${offer.price}/mes${a.kind === 'quantity' ? ` por ${a.unit}` : ''}` : ''}
+                          {a.kind === 'toggle' && plan && getCapability(a.capability)?.limit ? ` · ${limitText(getCapability(a.capability), resolvedSaved[a.capability]?.limit)}` : ''}
                           {unavailable ? ' · no disponible en este plan' : ''}
                         </span>
                         {a.key === 'asistenteWhatsapp' && addonsForm.asistenteWhatsapp && !resolvedSaved.asistenteWhatsapp.enabled && !addonsDirty && (
@@ -657,8 +666,9 @@ export default function BusinessDetail({
                 {limitedCaps.map((cap) => {
                   const r = resolvedSaved[cap.key];
                   const used = usage.usedFor(cap);
-                  const st = usageStatus(r.limit, used);
-                  const rejected = usage.rejectedFor(cap);
+                  const perClient = !!cap.limit.perClient;
+                  const st = usageStatus(perClient ? null : r.limit, used);
+                  const clientesAlLimite = perClient ? waClients.atLimit : 0;
                   return (
                     <tr key={cap.key}>
                       <td className="px-3 py-2 text-white">
@@ -676,8 +686,14 @@ export default function BusinessDetail({
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        {st.overage > 0 ? <span className="text-red-400">+{st.overage}</span> : <span className="text-slate-600">0</span>}
-                        {rejected > 0 && <p className="text-xs text-amber-400">{rejected} bloqueados por límite</p>}
+                        {perClient ? (
+                          // WhatsApp (límite por cliente): solo se muestra lo que no está en 0.
+                          clientesAlLimite > 0 ? (
+                            <span className="text-amber-400">{clientesAlLimite} {clientesAlLimite === 1 ? 'cliente' : 'clientes'} en el límite</span>
+                          ) : <span className="text-slate-600">—</span>
+                        ) : (
+                          st.overage > 0 ? <span className="text-red-400">+{st.overage}</span> : <span className="text-slate-600">0</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -685,9 +701,58 @@ export default function BusinessDetail({
               </tbody>
             </table>
           </div>
+          {/* Top 3 clientes del Asistente de WhatsApp en el período */}
+          {resolvedSaved.asistenteWhatsapp.enabled && (
+            <div className="overflow-hidden rounded-xl border border-white/5">
+              <p className="border-b border-white/5 px-3 py-2 text-xs font-medium text-slate-400">
+                WhatsApp: clientes con más respuestas ({usage.period})
+                {usage.rejectedFor(whatsappCap) > 0 && (
+                  <span className="ml-2 text-slate-500">· {usage.rejectedFor(whatsappCap)} mensajes sin respuesta por límite este mes</span>
+                )}
+              </p>
+              {waClients.error ? (
+                <p className="px-3 py-3 text-xs text-red-400">No se pudo leer: {waClients.error}</p>
+              ) : waClients.top.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-slate-600">Sin respuestas registradas por cliente en este período.</p>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/5 text-slate-500">
+                      <th className="px-3 py-2 font-medium">#</th>
+                      <th className="px-3 py-2 font-medium">Cliente (celular)</th>
+                      <th className="px-3 py-2 font-medium">Respuestas</th>
+                      <th className="w-40 px-3 py-2 font-medium">Del límite</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {waClients.top.map((c, i) => {
+                      const st = usageStatus(waClientLimit, c.enviados);
+                      return (
+                        <tr key={c.phone}>
+                          <td className="px-3 py-2 text-slate-500">{i + 1}</td>
+                          <td className="px-3 py-2 text-white">{formatPhone(c.phone)}</td>
+                          <td className="px-3 py-2 text-slate-300">{c.enviados}{typeof waClientLimit === 'number' ? ` / ${waClientLimit}` : ''}</td>
+                          <td className="px-3 py-2">
+                            {st.percent === null ? <span className="text-slate-600">Sin límite</span> : (
+                              <div className="space-y-1">
+                                <UsageBar percent={st.percent} exceeded={st.exceeded} />
+                                <span className={st.exceeded ? 'text-red-400' : 'text-slate-400'}>{st.exceeded ? 'En el límite' : `${st.percent}%`}</span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
           <p className="text-xs text-slate-600">
-            WhatsApp: cuenta cada mensaje enviado por el bot (negocios/{business.id}/uso/{usage.period}). Al llegar al límite el bot deja de responder y los
-            mensajes entrantes se cuentan como "bloqueados por límite". Excedente = consumo por encima del límite (ej. si bajaste el límite a mitad de mes).
+            WhatsApp: el límite es por cliente (cada celular). Cuando un cliente llega a su límite del mes, el bot deja de responderle solo a él;
+            los demás siguen normales. Consumo = total de respuestas del bot en el mes. La tabla por cliente cuenta desde que se activó el límite por cliente.
+            Excedente (profesionales/sucursales) = cantidad por encima del límite.
           </p>
           {usage.error && <p className="text-xs text-red-400">{usage.error}</p>}
 
