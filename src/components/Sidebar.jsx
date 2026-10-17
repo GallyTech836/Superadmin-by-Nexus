@@ -26,7 +26,7 @@ export default function Sidebar({ page, setPage, onLogout, userEmail, onClose, o
       <div className="flex items-start justify-between px-5 py-6">
         <div>
           <span className="text-xl font-bold tracking-tight text-white">NEXUS<span className="text-indigo-400">.</span></span>
-          <p className="mt-0.5 text-xs text-slate-500">Super Admin</p>
+          <p className="mt-0.5 text-xs text-slate-500">Control</p>
         </div>
         {onClose && (
           <button

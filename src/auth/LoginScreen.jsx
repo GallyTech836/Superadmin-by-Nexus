@@ -14,7 +14,7 @@ export default function LoginScreen({ onLogin, error, loading }) {
       <div className="w-full max-w-sm rounded-2xl border border-white/5 bg-slate-900 p-8 shadow-xl">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-white">NEXUS<span className="text-indigo-400">.</span></h1>
-          <p className="mt-1 text-sm text-slate-500">Panel de Super Admin</p>
+          <p className="mt-1 text-sm text-slate-500">Panel de control</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

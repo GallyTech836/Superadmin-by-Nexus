@@ -6,7 +6,7 @@ export default function SettingsPage({ userEmail, businessCount }) {
 
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-white/5 bg-slate-900 p-5">
-          <p className="mb-3 text-sm font-medium text-white">Super Admin</p>
+          <p className="mb-3 text-sm font-medium text-white">Nexus Control</p>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-slate-500">Nombre</span><span className="text-white">Gally</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Email</span><span className="text-white">{userEmail}</span></div>
