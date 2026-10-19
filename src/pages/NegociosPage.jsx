@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, CheckCircle2, Copy, Check, Sliders, Eye, EyeOff } from 'lucide-react';
-import { StatusBadge, Modal, Field, SelectField, STATUS_LABELS } from '../components/common';
+import { Plus, Search, CheckCircle2, Copy, Check, Sliders } from 'lucide-react';
+import {
+  StatusBadge, Modal, Field, SelectField, Label, PasswordInput, Button, PageHeader, Panel, Notice, EmptyState,
+  Segmented, Select, SectionLabel, Table, Th, Td, RowButton, STATUS_LABELS, formatDate, relativeDays,
+} from '../components/common';
 import BusinessDetail from '../components/BusinessDetail';
 import { createBusiness } from '../data/superadminApi';
 import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
@@ -13,7 +16,7 @@ const emptyForm = {
 };
 
 export default function NegociosPage({
-  businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
+  focus, onFocusDone, businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
 }) {
   function planName(planId) {
     return plans.find((p) => p.id === planId)?.name || 'Sin plan';
@@ -24,7 +27,7 @@ export default function NegociosPage({
   const [planFilter, setPlanFilter] = useState('todos');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [detailId, setDetailId] = useState(null);
+  const [detailId, setDetailId] = useState(focus?.id ?? null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createdCreds, setCreatedCreds] = useState(null); // { email, tempPassword }
@@ -95,7 +98,8 @@ export default function NegociosPage({
         business={detail}
         plans={plans}
         activity={activity}
-        onClose={() => setDetailId(null)}
+        initialTab={focus?.id === detail.id ? focus.tab : undefined}
+        onClose={() => { setDetailId(null); onFocusDone?.(); }}
         updateStatus={updateStatus}
         updatePlan={updatePlan}
         updateInfo={updateInfo}
@@ -109,160 +113,163 @@ export default function NegociosPage({
     );
   }
 
+  const statusOptions = [
+    { value: 'todos', label: 'Todos' },
+    ...['active', 'trial', 'suspended', 'expired'].map((f) => ({ value: f, label: STATUS_LABELS[f] })),
+  ];
+
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Negocios</h1>
-          <p className="mt-1 text-sm text-slate-500">{businesses.length} negocios registrados</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600"
-        >
-          <Plus size={16} /> Nuevo negocio
-        </button>
-      </div>
+      <PageHeader
+        title="Negocios"
+        description={`${businesses.length} ${businesses.length === 1 ? 'negocio registrado' : 'negocios registrados'}`}
+        actions={<Button variant="primary" icon={Plus} onClick={openCreate}>Nuevo negocio</Button>}
+      />
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900 px-3 py-2">
-          <Search size={15} className="text-slate-500" />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <label className="nx-input-group flex h-9 w-full items-center gap-2 rounded-md border border-line-strong bg-canvas px-3 sm:w-72">
+          <Search size={15} className="shrink-0 text-subtle" aria-hidden="true" />
+          <span className="sr-only">Buscar</span>
           <input
+            type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar negocio, slug o correo..."
-            className="bg-transparent text-sm text-white outline-none placeholder:text-slate-600"
+            placeholder="Buscar por nombre, slug o correo"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-fg outline-none"
           />
+        </label>
+        <Segmented label="Filtrar por estado" options={statusOptions} value={filter} onChange={setFilter} />
+        <div className="w-full sm:w-48">
+          <Select size="sm" aria-label="Filtrar por plan" value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} className="h-8">
+            <option value="todos">Todos los planes</option>
+            <option value="none">Sin plan</option>
+            {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
         </div>
-        <div className="flex gap-1.5">
-          {['todos', 'active', 'trial', 'suspended', 'expired'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                filter === f ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-900 text-slate-500 hover:text-white'
-              }`}
-            >
-              {f === 'todos' ? 'Todos' : STATUS_LABELS[f]}
-            </button>
-          ))}
-        </div>
-        <select
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-          className="rounded-lg border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 outline-none"
-        >
-          <option value="todos">Todos los planes</option>
-          <option value="none">Sin plan</option>
-          {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
       </div>
 
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-white/5 bg-slate-900">
-        <table className="w-full min-w-[720px] text-left text-sm">
+      <Panel flush>
+        <Table minWidth={760}>
           <thead>
-            <tr className="border-b border-white/5 text-xs text-slate-500">
-              <th className="px-4 py-3 font-medium">Negocio</th>
-              <th className="px-4 py-3 font-medium">Propietario</th>
-              <th className="px-4 py-3 font-medium">Plan</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium">Vence</th>
-              <th className="px-4 py-3 font-medium">Excepciones</th>
+            <tr>
+              <Th>Negocio</Th>
+              <Th>Propietario</Th>
+              <Th>Plan</Th>
+              <Th>Estado</Th>
+              <Th>Vence</Th>
+              <Th align="right">Excepciones</Th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((b) => {
               const overrides = Object.keys(cleanOverrides(b.capabilityOverrides)).length;
-              const vence = b.rawStatus === 'trial' && b.trialEnd ? `${b.trialEnd} (prueba)` : b.subscriptionEnd || '—';
+              const isTrialEnd = b.rawStatus === 'trial' && b.trialEnd;
+              const endDate = isTrialEnd ? b.trialEnd : b.subscriptionEnd;
               return (
-                <tr
-                  key={b.id}
-                  onClick={() => setDetailId(b.id)}
-                  className="cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/5"
-                >
-                  <td className="px-4 py-3 text-white">{b.name}</td>
-                  <td className="px-4 py-3 text-slate-400">{b.ownerName || b.ownerEmail}</td>
-                  <td className="px-4 py-3 text-slate-400">{planName(b.plan)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
-                  <td className="px-4 py-3 text-slate-400">{vence}</td>
-                  <td className="px-4 py-3">
+                <RowButton key={b.id} onActivate={() => setDetailId(b.id)} label={`Abrir ${b.name}`}>
+                  <Td className="font-medium text-fg">{b.name}</Td>
+                  <Td className="text-muted">{b.ownerName || b.ownerEmail}</Td>
+                  <Td className="text-muted">{planName(b.plan)}</Td>
+                  <Td><StatusBadge status={b.status} /></Td>
+                  <Td className="text-muted">
+                    {endDate ? (
+                      <>
+                        <span className="nx-num">{formatDate(endDate)}</span>
+                        <span className="ml-1.5 text-xs text-subtle">{isTrialEnd ? 'prueba · ' : ''}{relativeDays(endDate)}</span>
+                      </>
+                    ) : '—'}
+                  </Td>
+                  <Td align="right">
                     {overrides > 0 ? (
-                      <span className="flex items-center gap-1 text-xs text-indigo-300"><Sliders size={12} /> {overrides}</span>
-                    ) : <span className="text-xs text-slate-700">—</span>}
-                  </td>
-                </tr>
+                      <span className="inline-flex items-center gap-1 text-xs text-brand-text" title={`${overrides} excepciones de capacidades`}>
+                        <Sliders size={12} aria-hidden="true" /> {overrides}
+                      </span>
+                    ) : <span className="text-subtle">—</span>}
+                  </Td>
+                </RowButton>
               );
             })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-600">Sin resultados</td></tr>
-            )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+        {filtered.length === 0 && (
+          businesses.length === 0 ? (
+            <EmptyState title="Aún no hay negocios" action={<Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>Crear el primero</Button>}>
+              Registra un negocio para darle acceso a Nexus.
+            </EmptyState>
+          ) : (
+            <EmptyState title="Sin resultados">Ningún negocio coincide con la búsqueda o los filtros.</EmptyState>
+          )
+        )}
+      </Panel>
 
       {showCreate && (
         <Modal title="Nuevo negocio" onClose={closeCreateModal} wide>
           {createdCreds ? (
             /* Éxito: mostramos la contraseña generada UNA sola vez */
-            <div className="space-y-4 py-2 text-center">
-              <CheckCircle2 className="mx-auto text-emerald-400" size={40} />
-              <p className="font-medium text-white">Negocio creado correctamente</p>
-              <p className="text-xs text-slate-500">Copia estos datos y pásaselos al dueño — no se van a volver a mostrar.</p>
-              <div className="space-y-1 rounded-lg border border-white/10 bg-slate-950 p-4 text-left text-sm">
-                <p className="text-slate-400">Correo: <span className="text-white">{createdCreds.email}</span></p>
-                <p className="text-slate-400">Contraseña: <span className="nx-num text-white">{createdCreds.tempPassword}</span></p>
+            <div className="space-y-5">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 shrink-0 text-ok" size={20} aria-hidden="true" />
+                <div>
+                  <p className="font-medium text-fg">Negocio creado</p>
+                  <p className="mt-0.5 text-sm text-muted">Copia estos datos y entrégaselos al dueño. No se volverán a mostrar.</p>
+                </div>
               </div>
-              <button
-                onClick={copyCreds}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
-              >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                {copied ? 'Copiado' : 'Copiar datos'}
-              </button>
-              <button onClick={closeCreateModal} className="w-full rounded-lg bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">
-                Cerrar
-              </button>
+              <dl className="space-y-2 rounded-md border border-line bg-canvas p-4 text-sm">
+                <div className="flex flex-wrap justify-between gap-2"><dt className="text-subtle">Correo</dt><dd className="text-fg">{createdCreds.email}</dd></div>
+                <div className="flex flex-wrap justify-between gap-2"><dt className="text-subtle">Contraseña</dt><dd className="font-mono text-fg">{createdCreds.tempPassword}</dd></div>
+              </dl>
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <Button variant="primary" onClick={closeCreateModal} className="sm:flex-1" block>Listo</Button>
+                <Button icon={copied ? Check : Copy} onClick={copyCreds} className="sm:flex-1" block>
+                  {copied ? 'Copiado' : 'Copiar datos'}
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="space-y-5">
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Información del negocio</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Nombre del negocio" value={form.name} onChange={(e) => updateForm('name', e.target.value)} />
+            <div className="space-y-6">
+              <section>
+                <SectionLabel>Información del negocio</SectionLabel>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Nombre del negocio" value={form.name} onChange={(e) => updateForm('name', e.target.value)} required />
                   <SelectField label="Tipo de negocio" value={form.businessType} onChange={(e) => updateForm('businessType', e.target.value)}>
                     {BUSINESS_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                   </SelectField>
                   <Field label="Nombre del propietario" value={form.ownerName} onChange={(e) => updateForm('ownerName', e.target.value)} />
-                  <Field label="Teléfono" value={form.phone} onChange={(e) => updateForm('phone', e.target.value)} />
+                  <Field label="Teléfono" type="tel" value={form.phone} onChange={(e) => updateForm('phone', e.target.value)} />
                   <Field label="Ciudad" value={form.city} onChange={(e) => updateForm('city', e.target.value)} />
                 </div>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Acceso del administrador</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Email (con esto va a hacer login en AdminApp)" type="email" value={form.ownerEmail} onChange={(e) => updateForm('ownerEmail', e.target.value)} />
+              </section>
+              <section>
+                <SectionLabel>Acceso del administrador</SectionLabel>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Correo del administrador"
+                    hint="Con este correo inicia sesión en el panel del negocio."
+                    type="email"
+                    autoComplete="off"
+                    value={form.ownerEmail}
+                    onChange={(e) => updateForm('ownerEmail', e.target.value)}
+                    required
+                  />
                   <div>
-                    <label className="mb-1 block text-xs text-slate-400">Contraseña (opcional)</label>
-                    <div className="flex items-center rounded-lg border border-white/10 bg-slate-950 focus-within:border-indigo-500">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={form.password}
-                        onChange={(e) => updateForm('password', e.target.value)}
-                        placeholder="Vacía = se genera sola"
-                        autoComplete="new-password"
-                        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600"
-                      />
-                      <button type="button" onClick={() => setShowPassword((v) => !v)} className="px-2 text-slate-500 hover:text-white" aria-label="Mostrar contraseña">
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                    <Label htmlFor="new-biz-password">Contraseña (opcional)</Label>
+                    <PasswordInput
+                      id="new-biz-password"
+                      value={form.password}
+                      onChange={(e) => updateForm('password', e.target.value)}
+                      placeholder="Vacía: se genera automáticamente"
+                      autoComplete="new-password"
+                      aria-describedby="new-biz-password-hint"
+                      visible={showPassword}
+                      onToggleVisible={() => setShowPassword((v) => !v)}
+                    />
+                    <p id="new-biz-password-hint" className="mt-1 text-xs text-subtle">Mínimo 6 caracteres. Se muestra una sola vez al crear.</p>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-600">Mínimo 6 caracteres. Si la dejas vacía se genera una. Se muestra una sola vez al crear.</p>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Suscripción</p>
-                <div className="grid grid-cols-3 gap-3">
+              </section>
+              <section>
+                <SectionLabel>Suscripción</SectionLabel>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <SelectField label="Plan" value={form.plan} onChange={(e) => {
                     const p = plans.find((x) => x.id === e.target.value);
                     setForm((f) => ({ ...f, plan: e.target.value, trialDays: p?.trialDays || f.trialDays }));
@@ -272,7 +279,7 @@ export default function NegociosPage({
                       .filter((p) => isPlanCompatible(p, getBusinessProfile(form.businessType).vertical))
                       .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </SelectField>
-                  <SelectField label="Estado" value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
+                  <SelectField label="Estado inicial" value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
                     <option value="trial">Prueba</option>
                     <option value="active">Activo</option>
                   </SelectField>
@@ -280,21 +287,21 @@ export default function NegociosPage({
                     <Field label="Días de prueba" type="number" min="1" value={form.trialDays} onChange={(e) => updateForm('trialDays', e.target.value)} />
                   )}
                 </div>
-                {plans.length === 0 && <p className="mt-1 text-xs text-amber-400">Todavía no creaste planes: el negocio usará las capacidades por defecto.</p>}
+                {plans.length === 0 && (
+                  <Notice tone="warn" className="mt-3">Aún no hay planes: el negocio usará las capacidades por defecto.</Notice>
+                )}
+              </section>
+              {createError && <Notice tone="bad">{createError}</Notice>}
+              <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+                <Button onClick={closeCreateModal}>Cancelar</Button>
+                <Button variant="primary" onClick={handleCreate} disabled={creating || !form.name || !form.ownerEmail}>
+                  {creating ? 'Creando…' : 'Crear negocio'}
+                </Button>
               </div>
-              {createError && <p className="text-xs text-red-400">{createError}</p>}
-              <button
-                onClick={handleCreate}
-                disabled={creating}
-                className="w-full rounded-lg bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-              >
-                {creating ? 'Creando…' : 'Crear negocio'}
-              </button>
             </div>
           )}
         </Modal>
       )}
-
     </div>
   );
 }

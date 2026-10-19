@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, AlertTriangle, Link2, Sparkles, Power } from 'lucide-react';
-import { Modal, Field, Toggle, LimitInput, CapStatusBadge } from '../components/common';
+import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, Link2, ListPlus, Power } from 'lucide-react';
+import {
+  Modal, Field, SelectField, Toggle, LimitInput, CapStatusBadge, Button, Badge, PageHeader, Notice, EmptyState, Segmented, Label, Input,
+} from '../components/common';
 import { BILLING_CYCLES, BILLING_LABELS, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import {
   CAPABILITIES,
@@ -233,138 +235,145 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Planes</h1>
-          <p className="mt-1 text-sm text-slate-500">{plans.length} planes · cada plan es un conjunto de capacidades</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {missingLaunch.length > 0 && (
-            <button
-              onClick={handleSeed}
-              disabled={seeding}
-              className="flex items-center gap-2 rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-50"
-              title="Crea solo los que faltan. Nunca reemplaza planes existentes."
-            >
-              <Sparkles size={16} /> {seeding ? 'Creando…' : `Crear planes de lanzamiento (${missingLaunch.map((p) => p.name).join(', ')})`}
-            </button>
-          )}
-          <button onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-600">
-            <Plus size={16} /> Crear plan
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Planes"
+        description={`${plans.length} ${plans.length === 1 ? 'plan' : 'planes'} · cada plan es un conjunto de capacidades`}
+        actions={(
+          <>
+            {missingLaunch.length > 0 && (
+              <Button
+                icon={ListPlus}
+                onClick={handleSeed}
+                disabled={seeding}
+                title={`Crea solo los que faltan (${missingLaunch.map((p) => p.name).join(', ')}). Nunca reemplaza planes existentes.`}
+              >
+                {seeding ? 'Creando…' : `Crear planes de lanzamiento (${missingLaunch.length})`}
+              </Button>
+            )}
+            <Button variant="primary" icon={Plus} onClick={openCreate}>Crear plan</Button>
+          </>
+        )}
+      />
 
       {seedResult && (
-        <div className={`mt-3 rounded-lg border p-3 text-xs ${seedResult.error ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>
+        <Notice tone={seedResult.error ? 'bad' : 'ok'} className="mb-4">
           {seedResult.error
             ? `No se pudieron crear los planes: ${seedResult.error}`
             : <>
                 {seedResult.created.length ? `Creados: ${seedResult.created.join(', ')}.` : 'No se creó ningún plan.'}
                 {seedResult.skipped.length > 0 && ` Ya existían (no se tocaron): ${seedResult.skipped.join(', ')}.`}
               </>}
-        </div>
+        </Notice>
       )}
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
           const resolved = resolveCapabilities({ planFeatures: plan.features || null });
           return (
-            <div key={plan.id} className={`rounded-2xl border bg-slate-900 p-5 ${plan.active === false ? 'border-white/5 opacity-60' : 'border-white/5'}`}>
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
+            <article key={plan.id} className={`flex flex-col rounded-lg border border-line bg-surface p-5 ${plan.active === false ? 'opacity-70' : ''}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-lg font-semibold text-white">{plan.name}</p>
-                    {plan.active === false && <span className="rounded-md bg-slate-700/50 px-1.5 py-0.5 text-xs text-slate-400">Inactivo</span>}
+                    <h2 className="truncate text-lg font-semibold text-fg">{plan.name}</h2>
+                    {plan.active === false && <Badge tone="neutral" outline>Inactivo</Badge>}
                   </div>
-                  <p className="text-sm text-slate-400">
-                    {formatPrice(plan)} <span className="text-slate-600">· {BILLING_LABELS[plan.billingCycle] || plan.billingCycle}</span>
+                  <p className="mt-1 text-sm text-fg">
+                    <span className="nx-num text-xl font-semibold tracking-[-0.01em]">{formatPrice(plan)}</span>
+                    <span className="ml-1.5 text-subtle">{BILLING_LABELS[plan.billingCycle] || plan.billingCycle}</span>
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-600">
+                  <p className="mt-1 text-xs text-subtle">
                     {usageByPlan[plan.id] || 0} negocios con este plan
                     {plan.vertical ? ` · ${VERTICAL_LABELS[plan.vertical] || plan.vertical}` : ''}
                   </p>
                 </div>
-                <div className="flex gap-1">
-                  <button
+                <div className="-mt-1 -mr-1.5 flex shrink-0 gap-0.5">
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     onClick={() => toggleActive(plan)}
+                    aria-label={plan.active === false ? `Activar ${plan.name}` : `Desactivar ${plan.name}`}
                     title={plan.active === false ? 'Activar (se podrá asignar)' : 'Desactivar (los negocios que lo usan lo conservan)'}
-                    className={`rounded-lg p-1.5 hover:bg-white/5 ${plan.active === false ? 'text-slate-600 hover:text-emerald-400' : 'text-emerald-400 hover:text-slate-300'}`}
+                    className={plan.active === false ? '' : '!text-ok'}
                   >
-                    <Power size={14} />
-                  </button>
-                  <button onClick={() => openEdit(plan)} className="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-white">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => setConfirmDelete(plan)} className="rounded-lg p-1.5 text-slate-500 hover:bg-red-500/10 hover:text-red-400">
-                    <Trash2 size={14} />
-                  </button>
+                    <Power size={15} />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(plan)} aria-label={`Editar ${plan.name}`} title="Editar">
+                    <Pencil size={15} />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(plan)} aria-label={`Eliminar ${plan.name}`} title="Eliminar" className="hover:!text-bad">
+                    <Trash2 size={15} />
+                  </Button>
                 </div>
               </div>
-              {plan.description && <p className="mt-2 text-xs text-slate-500">{plan.description}</p>}
+              {plan.description && <p className="mt-3 text-sm text-muted">{plan.description}</p>}
 
               {/* Límites y condiciones comerciales */}
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-slate-800/60 px-2.5 py-1.5">
-                  <p className="text-slate-500">Profesionales</p>
-                  <p className="font-medium text-white">{describeLimit(getCapability('profesionales'), resolved.profesionales.limit)}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-line py-3 text-sm">
+                <div>
+                  <dt className="text-xs text-subtle">Profesionales</dt>
+                  <dd className="mt-0.5 font-medium text-fg">{describeLimit(getCapability('profesionales'), resolved.profesionales.limit)}</dd>
                 </div>
-                <div className="rounded-lg bg-slate-800/60 px-2.5 py-1.5">
-                  <p className="text-slate-500">Sucursales</p>
-                  <p className="font-medium text-white">{describeLimit(getCapability('sucursales'), resolved.sucursales.limit)}</p>
+                <div>
+                  <dt className="text-xs text-subtle">Sucursales</dt>
+                  <dd className="mt-0.5 font-medium text-fg">{describeLimit(getCapability('sucursales'), resolved.sucursales.limit)}</dd>
                 </div>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Prueba: {plan.trialDays || DEFAULT_TRIAL_DAYS} días · Activación: {Number(plan.setupFee) > 0 ? `${plan.currency || 'Bs'} ${plan.setupFee}` : 'gratis'}
-              </p>
+                <div>
+                  <dt className="text-xs text-subtle">Prueba</dt>
+                  <dd className="mt-0.5 text-fg">{plan.trialDays || DEFAULT_TRIAL_DAYS} días</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-subtle">Activación</dt>
+                  <dd className="mt-0.5 text-fg">{Number(plan.setupFee) > 0 ? `${plan.currency || 'Bs'} ${plan.setupFee}` : 'Gratis'}</dd>
+                </div>
+              </dl>
 
               {/* Lo que se puede promocionar: solo funciones operativas */}
-              <div className="mt-3">
-                <p className="mb-1 text-xs font-medium text-slate-400">Incluye</p>
-                <div className="flex flex-wrap gap-1">
+              <div className="mt-4">
+                <p className="mb-2 text-2xs font-semibold tracking-[0.06em] text-subtle uppercase">Incluye</p>
+                <ul className="flex flex-wrap gap-1.5">
                   {sellableCapabilities(resolved).map((c) => (
-                    <span key={c.key} className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-xs text-emerald-300">{c.label}</span>
+                    <li key={c.key} className="rounded-sm border border-line px-1.5 text-xs leading-5 text-fg">{c.label}</li>
                   ))}
-                </div>
+                </ul>
               </div>
 
               {/* Complementos: se contratan aparte, nunca incluidos */}
-              <div className="mt-3">
-                <p className="mb-1 text-xs font-medium text-slate-400">Complementos (aparte)</p>
+              <div className="mt-4">
+                <p className="mb-1.5 text-2xs font-semibold tracking-[0.06em] text-subtle uppercase">Complementos (aparte)</p>
                 {ADDONS.map((a) => {
                   const o = getAddonOffer(plan, a.key);
                   return (
-                    <p key={a.key} className={`text-xs ${o.available ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
+                    <p key={a.key} className={`text-xs leading-5 ${o.available ? 'text-muted' : 'text-subtle line-through'}`}>
                       {a.label}: {plan.currency || 'Bs'} {o.price}/mes{a.kind === 'quantity' ? ` por ${a.unit}` : ''}
                     </p>
                   );
                 })}
               </div>
 
-              <details className="mt-3">
-                <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300">Ver todas las capacidades</summary>
+              <details className="mt-auto pt-4">
+                <summary className="w-fit cursor-pointer rounded-sm text-xs font-medium text-brand-text hover:text-fg">Ver todas las capacidades</summary>
               <div className="mt-3 space-y-3 text-sm">
                 {CAPABILITY_MODULES.map((mod) => {
                   const caps = moduleCaps(mod.key, plan.vertical || null);
                   if (!caps.length) return null;
                   return (
                     <div key={mod.key}>
-                      <p className="mb-1 text-xs font-medium text-slate-600">{mod.label}</p>
+                      <p className="mb-1 text-2xs font-semibold tracking-[0.06em] text-subtle uppercase">{mod.label}</p>
                       {caps.map((cap) => {
                         const v = resolved[cap.key];
                         return (
                           <div key={cap.key} className="flex items-center justify-between py-0.5">
-                            <span className={`text-xs ${v.enabled ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className={`text-xs ${v.enabled ? 'text-fg' : 'text-subtle'}`}>
                               {cap.label}
-                              {cap.status === 'mock' && <span className="ml-1 text-xs text-amber-500/80">(maqueta, no operativa)</span>}
-                              {cap.status === 'partial' && <span className="ml-1 text-xs text-sky-400/80">(parcial)</span>}
+                              {cap.status === 'mock' && <span className="ml-1 text-warn">(maqueta, no operativa)</span>}
+                              {cap.status === 'partial' && <span className="ml-1 text-brand-text">(parcial)</span>}
                             </span>
                             {v.enabled ? (
-                              <span className="flex items-center gap-1 text-xs text-emerald-400">
-                                {cap.limit ? <span className="text-slate-400">{describeLimit(cap, v.limit)}</span> : <Check size={12} />}
+                              <span className="flex items-center gap-1 text-xs text-ok">
+                                {cap.limit ? <span className="text-muted">{describeLimit(cap, v.limit)}</span> : <Check size={12} />}
                               </span>
                             ) : (
-                              <Minus size={12} className="text-slate-700" />
+                              <Minus size={12} className="text-subtle" aria-label="No incluida" />
                             )}
                           </div>
                         );
@@ -374,36 +383,39 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 })}
               </div>
               </details>
-            </div>
+            </article>
           );
         })}
-        {plans.length === 0 && (
-          <p className="col-span-3 py-8 text-center text-sm text-slate-600">Todavía no hay planes creados.</p>
-        )}
       </div>
+      {plans.length === 0 && (
+        <div className="rounded-lg border border-line bg-surface">
+          <EmptyState title="Aún no hay planes" action={<Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>Crear plan</Button>}>
+            Un plan define qué capacidades y límites tiene cada negocio.
+          </EmptyState>
+        </div>
+      )}
 
       {confirmDelete && (
         <Modal title="Eliminar plan" onClose={() => setConfirmDelete(null)}>
           <div className="space-y-4">
             {(usageByPlan[confirmDelete.id] || 0) > 0 ? (
-              <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-                <AlertTriangle size={16} className="shrink-0" />
-                <span>
-                  {usageByPlan[confirmDelete.id]} negocios usan "{confirmDelete.name}", así que no se puede eliminar.
-                  Desactívalo: dejará de poder asignarse, y esos negocios conservan el plan, sus capacidades y sus datos.
-                </span>
-              </div>
+              <Notice tone="warn" title="Este plan está en uso y no se puede eliminar">
+                <p>
+                  {usageByPlan[confirmDelete.id]} negocios usan "{confirmDelete.name}". Desactívalo: dejará de poder asignarse,
+                  y esos negocios conservan el plan, sus capacidades y sus datos.
+                </p>
+              </Notice>
             ) : (
-              <p className="text-sm text-slate-400">¿Eliminar el plan "{confirmDelete.name}"? Ningún negocio lo usa.</p>
+              <p className="text-sm text-muted">¿Eliminar el plan "{confirmDelete.name}"? Ningún negocio lo usa. Esta acción no se puede deshacer.</p>
             )}
-            <div className="flex gap-2">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-lg bg-slate-800 py-2 text-sm text-white hover:bg-slate-700">Cancelar</button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button onClick={() => setConfirmDelete(null)}>Cancelar</Button>
               {(usageByPlan[confirmDelete.id] || 0) > 0 ? (
                 confirmDelete.active !== false && (
-                  <button onClick={async () => { await toggleActive(confirmDelete); setConfirmDelete(null); }} className="flex-1 rounded-lg bg-amber-500/80 py-2 text-sm font-medium text-white hover:bg-amber-500">Desactivar</button>
+                  <Button variant="primary" icon={Power} onClick={async () => { await toggleActive(confirmDelete); setConfirmDelete(null); }}>Desactivar plan</Button>
                 )
               ) : (
-                <button onClick={() => handleDelete(confirmDelete)} className="flex-1 rounded-lg bg-red-500/80 py-2 text-sm font-medium text-white hover:bg-red-500">Eliminar</button>
+                <Button variant="danger" icon={Trash2} onClick={() => handleDelete(confirmDelete)}>Eliminar plan</Button>
               )}
             </div>
           </div>
@@ -423,46 +435,48 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 <Field label="Descripción" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-1.5 block text-xs text-slate-400">Tipo de negocio del plan</label>
-                <select
+                <SelectField
+                  label="Tipo de negocio del plan"
                   value={form.vertical || ''}
                   onChange={(e) => setForm((f) => ({ ...f, vertical: e.target.value }))}
-                  className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
                 >
                   {PLAN_VERTICALS.map((v) => (
                     <option key={v.key} value={v.key} disabled={!v.sellable && form.vertical !== v.key}>{v.label}</option>
                   ))}
                   {!form.vertical && <option value="">General (plan anterior)</option>}
-                </select>
+                </SelectField>
               </div>
               <Field label={`Activación (${form.currency || 'Bs'})`} type="number" min="0" value={form.setupFee} onChange={(e) => setForm((f) => ({ ...f, setupFee: e.target.value }))} />
               <Field label="Orden" type="number" min="1" placeholder="1, 2, 3…" value={form.order} onChange={(e) => setForm((f) => ({ ...f, order: e.target.value }))} />
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs text-slate-400">Complementos (se contratan aparte; el plan nunca los incluye)</p>
-              <div className="space-y-2 rounded-xl border border-white/5 p-3">
+              <p className="mb-1.5 text-xs font-medium text-muted">Complementos (se contratan aparte; el plan nunca los incluye)</p>
+              <div className="divide-y divide-line rounded-lg border border-line">
                 {ADDONS.map((a) => {
                   const v = form.addons?.[a.key] || {};
                   return (
-                    <div key={a.key} className="flex flex-wrap items-center gap-3">
+                    <div key={a.key} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
                       <Toggle
+                        label={`${a.label} disponible`}
                         value={v.available !== false}
                         onChange={(on) => setForm((f) => ({ ...f, addons: { ...f.addons, [a.key]: { ...v, available: on } } }))}
                       />
-                      <span className={`min-w-0 flex-1 text-xs ${v.available !== false ? 'text-slate-200' : 'text-slate-500'}`}>
-                        {a.label}{a.description ? <span className="block text-slate-500">{a.description}</span> : null}
+                      <span className={`min-w-0 flex-1 text-sm ${v.available !== false ? 'text-fg' : 'text-subtle'}`}>
+                        {a.label}{a.description ? <span className="block text-xs text-subtle">{a.description}</span> : null}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-slate-500">{form.currency || 'Bs'}</span>
-                        <input
+                        <span className="text-xs text-subtle">{form.currency || 'Bs'}</span>
+                        <Input
+                          size="sm"
                           type="number"
                           min="0"
+                          aria-label={`Precio de ${a.label}`}
                           value={v.price ?? ''}
                           onChange={(e) => setForm((f) => ({ ...f, addons: { ...f.addons, [a.key]: { ...v, price: e.target.value } } }))}
-                          className="w-20 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-xs text-white outline-none focus:border-indigo-500"
+                          className="nx-num !w-20"
                         />
-                        <span className="text-xs text-slate-500">/mes{a.kind === 'quantity' ? ` por ${a.unit}` : ''}</span>
+                        <span className="text-xs text-subtle">/mes{a.kind === 'quantity' ? ` por ${a.unit}` : ''}</span>
                       </div>
                     </div>
                   );
@@ -472,22 +486,15 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
 
             <div className="flex flex-wrap items-end gap-5">
               <div>
-                <label className="mb-1.5 block text-xs text-slate-400">Ciclo de cobro</label>
-                <div className="flex flex-wrap gap-2">
-                  {BILLING_CYCLES.map((c) => (
-                    <button
-                      key={c.key}
-                      onClick={() => setForm((f) => ({ ...f, billingCycle: c.key }))}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                        form.billingCycle === c.key ? 'bg-indigo-500/25 text-indigo-300' : 'bg-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
+                <Label>Ciclo de cobro</Label>
+                <Segmented
+                  label="Ciclo de cobro"
+                  value={form.billingCycle}
+                  onChange={(key) => setForm((f) => ({ ...f, billingCycle: key }))}
+                  options={BILLING_CYCLES.map((c) => ({ value: c.key, label: c.label }))}
+                />
               </div>
-              <div className="w-40">
+              <div className="w-48">
                 <Field
                   label="Días de prueba (opcional)"
                   type="number"
@@ -497,20 +504,20 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                   onChange={(e) => setForm((f) => ({ ...f, trialDays: e.target.value }))}
                 />
               </div>
-              <label className="flex items-center gap-2 pb-2 text-sm text-white">
-                <Toggle value={form.active} onChange={(v) => setForm((f) => ({ ...f, active: v }))} />
+              <label className="flex items-center gap-2 pb-2 text-sm text-fg">
+                <Toggle label="Plan activo" value={form.active} onChange={(v) => setForm((f) => ({ ...f, active: v }))} />
                 {form.active ? 'Activo (se puede asignar)' : 'Inactivo'}
               </label>
             </div>
 
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-400">Capacidades incluidas, por módulo de Nexus</p>
-                <p className="text-xs text-slate-500">
-                  <span className="text-emerald-400">{draftSummary.enabled} habilitadas</span>
+                <p className="text-xs font-medium text-muted">Capacidades incluidas, por módulo de Nexus</p>
+                <p className="text-xs text-subtle">
+                  <span className="text-ok">{draftSummary.enabled} habilitadas</span>
                   {' · '}<span>{draftSummary.disabled} deshabilitadas</span>
                   {draftSummary.nonOperational.length > 0 && (
-                    <>{' · '}<span className="text-amber-400">{draftSummary.nonOperational.length} no operativas (maqueta)</span></>
+                    <>{' · '}<span className="text-warn">{draftSummary.nonOperational.length} no operativas (maqueta)</span></>
                   )}
                 </p>
               </div>
@@ -518,7 +525,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
               {/* Leyenda de estados */}
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
                 {Object.entries(CAPABILITY_STATUS).map(([key, st]) => (
-                  <span key={key} className="flex items-center gap-1.5 text-xs text-slate-500" title={STATUS_HELP[key]}>
+                  <span key={key} className="flex items-center gap-1.5 text-xs text-subtle" title={STATUS_HELP[key]}>
                     <CapStatusBadge status={key} label={st.label} />
                     <span className="hidden sm:inline">{STATUS_HELP[key]}</span>
                   </span>
@@ -527,20 +534,19 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
 
               {/* Aviso: capacidades marcadas cuyo requisito no está incluido */}
               {draftSummary.blocked.length > 0 && (
-                <div className="mb-3 space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-                  <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={14} /> Estas capacidades están marcadas pero NO quedarán habilitadas:</p>
+                <Notice tone="warn" className="mb-3" title="Estas capacidades están marcadas pero no quedarán habilitadas">
                   {draftSummary.blocked.map((cap) => {
                     const req = getCapability(draftResolved[cap.key].blockedBy);
                     return (
-                      <div key={cap.key} className="flex flex-wrap items-center gap-2 pl-5">
+                      <div key={cap.key} className="flex flex-wrap items-center gap-2">
                         <span>"{cap.label}" necesita "{req.label}".</span>
-                        <button onClick={() => includeRequirement(req.key)} className="rounded bg-amber-500/20 px-1.5 py-0.5 text-xs text-amber-200 hover:bg-amber-500/30">
+                        <Button size="sm" onClick={() => includeRequirement(req.key)}>
                           Incluir "{req.label}"
-                        </button>
+                        </Button>
                       </div>
                     );
                   })}
-                </div>
+                </Notice>
               )}
 
               <div className="space-y-3">
@@ -550,24 +556,25 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                   const isCollapsed = !!collapsed[mod.key];
                   const enabledHere = caps.filter((c) => draftResolved[c.key]?.enabled).length;
                   return (
-                    <div key={mod.key} className="rounded-xl border border-white/5">
+                    <div key={mod.key} className="rounded-lg border border-line">
                       <button
                         type="button"
                         onClick={() => setCollapsed((c) => ({ ...c, [mod.key]: !c[mod.key] }))}
-                        className={`flex w-full items-center gap-2 px-3 py-2 text-left ${isCollapsed ? '' : 'border-b border-white/5'}`}
+                        aria-expanded={!isCollapsed}
+                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left hover:bg-raised ${isCollapsed ? '' : 'rounded-b-none border-b border-line'}`}
                       >
-                        {isCollapsed ? <ChevronRight size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
-                        <span className="flex-1 text-xs font-medium text-slate-400">{mod.label}</span>
-                        <span className="text-xs text-slate-500">{enabledHere}/{caps.length}</span>
+                        {isCollapsed ? <ChevronRight size={14} className="text-subtle" /> : <ChevronDown size={14} className="text-subtle" />}
+                        <span className="flex-1 text-sm font-medium text-fg">{mod.label}</span>
+                        <span className="nx-num text-xs text-subtle">{enabledHere}/{caps.length}</span>
                       </button>
                       {!isCollapsed && (
-                      <div className="divide-y divide-white/5">
+                      <div className="divide-y divide-line">
                         {caps.map((cap) => {
                           if (cap.core) {
                             return (
-                              <div key={cap.key} className="flex items-center justify-between px-3 py-1.5">
-                                <span className="text-xs text-slate-300">{cap.label}</span>
-                                <span className="text-xs text-slate-500">Siempre incluida</span>
+                              <div key={cap.key} className="flex items-center justify-between px-3 py-2">
+                                <span className="text-sm text-fg">{cap.label}</span>
+                                <span className="text-xs text-subtle">Siempre incluida</span>
                               </div>
                             );
                           }
@@ -580,30 +587,30 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                           const lostDependents = !r.enabled ? dependents.filter((d) => form.features[d.key]?.enabled) : [];
                           const isQuota = cap.kind === 'quota';
                           return (
-                            <div key={cap.key} className={`flex flex-wrap items-center gap-3 px-3 py-1.5 ${parentMissing && v.enabled ? 'bg-amber-500/5' : ''}`}>
+                            <div key={cap.key} className={`flex flex-wrap items-center gap-3 px-3 py-2 ${parentMissing && v.enabled ? 'border-l-2 border-l-warn' : ''}`}>
                               {!isQuota && (
-                                <Toggle value={!!v.enabled} onChange={(on) => setCap(cap.key, { enabled: on })} />
+                                <Toggle label={cap.label} value={!!v.enabled} onChange={(on) => setCap(cap.key, { enabled: on })} />
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className={`text-xs ${isQuota || r.enabled ? 'text-slate-200' : 'text-slate-500'}`}>{cap.label}</span>
+                                  <span className={`text-sm ${isQuota || r.enabled ? 'text-fg' : 'text-muted'}`}>{cap.label}</span>
                                   {cap.status !== 'implemented' && <CapStatusBadge status={cap.status} label={CAPABILITY_STATUS[cap.status].label} />}
                                   {!isQuota && (
-                                    <span className={`text-xs ${r.enabled ? 'text-emerald-400' : 'text-slate-600'}`}>
+                                    <span className={`text-xs ${r.enabled ? 'text-ok' : 'text-subtle'}`}>
                                       {r.enabled ? 'Habilitada' : 'Deshabilitada'}
                                     </span>
                                   )}
                                 </div>
                                 {cap.status === 'mock' && (
-                                  <p className="text-xs text-amber-500/80">Maqueta: la pantalla existe pero todavía no guarda datos reales.</p>
+                                  <p className="text-xs text-warn">Maqueta: la pantalla existe pero todavía no guarda datos reales.</p>
                                 )}
                                 {parent && (
-                                  <p className={`flex items-center gap-1 text-xs ${parentMissing && v.enabled ? 'text-amber-400' : 'text-slate-500'}`}>
+                                  <p className={`flex items-center gap-1 text-xs ${parentMissing && v.enabled ? 'text-warn' : 'text-subtle'}`}>
                                     <Link2 size={11} /> Requiere "{parent.label}"{parentMissing && v.enabled ? ' — no está incluida' : ''}
                                   </p>
                                 )}
                                 {dependents.length > 0 && (
-                                  <p className={`text-xs ${lostDependents.length ? 'text-amber-400' : 'text-slate-600'}`}>
+                                  <p className={`text-xs ${lostDependents.length ? 'text-warn' : 'text-subtle'}`}>
                                     {lostDependents.length
                                       ? `Al no incluirla se desactivan: ${lostDependents.map((d) => d.label).join(', ')}`
                                       : `Necesaria para: ${dependents.map((d) => d.label).join(', ')}`}
@@ -612,8 +619,8 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                               </div>
                               {cap.limit && (isQuota || v.enabled) && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">Límite {cap.limit.unit}</span>
-                                  <LimitInput value={v.limit} onChange={(n) => setCap(cap.key, { limit: n })} />
+                                  <span className="text-xs text-subtle">Límite {cap.limit.unit}</span>
+                                  <LimitInput label={`Límite de ${cap.label}`} value={v.limit} onChange={(n) => setCap(cap.key, { limit: n })} />
                                 </div>
                               )}
                             </div>
@@ -625,32 +632,31 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                   );
                 })}
 
-                <div className="rounded-xl border border-dashed border-white/10">
-                  <button onClick={() => setShowSoon((s) => !s)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-500">
+                <div className="rounded-lg border border-dashed border-line-strong">
+                  <button type="button" aria-expanded={showSoon} onClick={() => setShowSoon((s) => !s)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-muted hover:text-fg">
                     {showSoon ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     Pendientes ({soonCaps.length}) — solo planificación, no se pueden activar
                   </button>
                   {showSoon && (
                     <div className="flex flex-wrap gap-2 px-3 pb-3">
                       {soonCaps.map((cap) => (
-                        <span key={cap.key} className="rounded-md bg-slate-800/60 px-2 py-1 text-xs text-slate-500">
-                          {cap.label} <span className="text-slate-600">· {CAPABILITY_MODULES.find((m) => m.key === cap.module)?.label}</span>
+                        <span key={cap.key} className="rounded-sm border border-line px-1.5 text-xs leading-5 text-muted">
+                          {cap.label} <span className="text-subtle">· {CAPABILITY_MODULES.find((m) => m.key === cap.module)?.label}</span>
                         </span>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-              <p className="mt-2 text-xs text-slate-600">Límite vacío = ilimitado. Los cambios se aplican en tiempo real a todos los negocios con este plan (backend: máx. 60 s).</p>
+              <p className="mt-2 text-xs text-subtle">Límite vacío = ilimitado. Los cambios se aplican en tiempo real a todos los negocios con este plan (backend: máx. 60 s).</p>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving || !form.name.trim()}
-              className="w-full rounded-lg bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-            >
-              {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear plan'}
-            </button>
+            <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+              <Button onClick={() => setShowForm(false)}>Cancelar</Button>
+              <Button variant="primary" onClick={handleSave} disabled={saving || !form.name.trim()}>
+                {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear plan'}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}

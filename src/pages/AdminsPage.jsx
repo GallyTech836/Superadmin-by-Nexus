@@ -1,40 +1,40 @@
-import { StatusBadge } from '../components/common';
+import { StatusBadge, PageHeader, Panel, EmptyState, Table, Th, Td, formatDate } from '../components/common';
 
 export default function AdminsPage({ businesses }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-white">Administradores</h1>
-      <p className="mt-1 text-sm text-slate-500">{businesses.length} administradores registrados</p>
+      <PageHeader
+        title="Administradores"
+        description={`${businesses.length} ${businesses.length === 1 ? 'administrador registrado' : 'administradores registrados'}`}
+      />
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-white/5 bg-slate-900">
-        <table className="w-full text-left text-sm">
+      <Panel flush>
+        <Table minWidth={680}>
           <thead>
-            <tr className="border-b border-white/5 text-xs text-slate-500">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Negocio</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium">Creado</th>
+            <tr>
+              <Th>Nombre</Th>
+              <Th>Correo</Th>
+              <Th>Negocio</Th>
+              <Th>Estado</Th>
+              <Th align="right">Alta</Th>
             </tr>
           </thead>
           <tbody>
             {businesses.map((b) => (
-              <tr key={b.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
-                <td className="px-4 py-3 text-white">{b.ownerName || '—'}</td>
-                <td className="px-4 py-3 text-slate-400">{b.ownerEmail}</td>
-                <td className="px-4 py-3 text-slate-400">{b.name}</td>
-                <td className="px-4 py-3"><StatusBadge status={b.status === 'suspended' ? 'suspended' : 'active'} /></td>
-                <td className="px-4 py-3 text-slate-400">{b.createdAt || '—'}</td>
+              <tr key={b.id} className="border-b border-line last:border-0">
+                <Td className="font-medium text-fg">{b.ownerName || '—'}</Td>
+                <Td className="text-muted">{b.ownerEmail}</Td>
+                <Td className="text-muted">{b.name}</Td>
+                <Td><StatusBadge status={b.status === 'suspended' ? 'suspended' : 'active'} /></Td>
+                <Td align="right" className="text-muted">{formatDate(b.createdAt) || '—'}</Td>
               </tr>
             ))}
-            {businesses.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-600">Sin administradores todavía</td></tr>
-            )}
           </tbody>
-        </table>
-      </div>
-      <p className="mt-3 text-xs text-slate-600">
-        Para suspender, reactivar o cambiar el plan de un administrador, hazlo desde su negocio en la sección "Negocios".
+        </Table>
+        {businesses.length === 0 && <EmptyState title="Aún no hay administradores">Cada negocio que registres crea su administrador.</EmptyState>}
+      </Panel>
+      <p className="mt-3 text-xs text-subtle">
+        Para suspender, reactivar o cambiar el plan de un administrador, hazlo desde su negocio en la sección Negocios.
       </p>
     </div>
   );

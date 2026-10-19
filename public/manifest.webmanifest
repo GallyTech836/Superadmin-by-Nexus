@@ -1,17 +1,16 @@
 {
-    "name": "Nexus Control",
-    "short_name": "Nexus Control",
-    "description": "Panel de control de la plataforma Nexus",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
-    "orientation": "any",
-    "background_color": "#020617",
-    "theme_color": "#020617",
-    "lang": "es",
-    "icons": [
-      { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-      { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
-    ]
-  }
-  
+  "name": "Nexus Control",
+  "short_name": "Nexus Control",
+  "description": "Panel de control de la plataforma Nexus",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "lang": "es",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

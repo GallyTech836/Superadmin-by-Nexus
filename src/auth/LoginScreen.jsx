@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { BrandMark } from '../components/Sidebar';
+import { Button, Field, Label, PasswordInput } from '../components/common';
 
 export default function LoginScreen({ onLogin, error, loading }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -10,45 +13,52 @@ export default function LoginScreen({ onLogin, error, loading }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
-      <div className="w-full max-w-sm rounded-2xl border border-white/5 bg-slate-900 p-8 shadow-xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white">NEXUS<span className="text-indigo-400">.</span></h1>
-          <p className="mt-1 text-sm text-slate-500">Panel de control</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs text-slate-400">Correo</label>
-            <input
+    <div className="flex min-h-screen flex-col bg-canvas">
+      <main className="flex flex-1 items-center px-6 py-12">
+        <div className="mx-auto w-full max-w-[360px]">
+          <div className="mb-10 flex items-center gap-3">
+            <BrandMark size={36} />
+            <div className="leading-tight">
+              <p className="text-base font-semibold text-fg">Nexus</p>
+              <p className="text-xs text-subtle">Control de plataforma</p>
+            </div>
+          </div>
+
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-fg">Iniciar sesión</h1>
+          <p className="mt-1.5 text-sm text-muted">Acceso exclusivo para administradores de la plataforma.</p>
+
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <Field
+              label="Correo"
               type="email"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
+              autoFocus
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-400">Contraseña</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
-            />
-          </div>
-          {error && (
-            <p className="text-xs font-semibold text-red-400">{error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-          >
-            {loading ? 'Verificando…' : 'Ingresar'}
-          </button>
-        </form>
-      </div>
+            <div>
+              <Label htmlFor="login-password">Contraseña</Label>
+              <PasswordInput
+                id="login-password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                visible={showPassword}
+                onToggleVisible={() => setShowPassword((v) => !v)}
+                required
+              />
+            </div>
+            {error && (
+              <p role="alert" className="border-l-2 border-bad pl-3 text-sm text-bad">{error}</p>
+            )}
+            <Button type="submit" variant="primary" block disabled={loading} className="mt-2">
+              {loading ? 'Verificando…' : 'Ingresar'}
+            </Button>
+          </form>
+        </div>
+      </main>
+      <footer className="px-6 pb-6 text-center text-xs text-subtle">Nexus · Panel interno</footer>
     </div>
   );
 }

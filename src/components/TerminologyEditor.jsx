@@ -4,6 +4,7 @@ import {
   TERM_CONCEPTS, TERM_CONCEPT_LABELS, TERM_MAX_LENGTH,
   getBusinessProfile, resolveTerminology, cleanTerminologyOverrides,
 } from '../shared/businessProfileModel';
+import { Button, Badge, Input, Select, SectionLabel } from './common';
 
 const GENDER_LABELS = { m: 'Masculino', f: 'Femenino' };
 
@@ -53,85 +54,88 @@ export default function TerminologyEditor({ business, onSave, busy }) {
   }
 
   return (
-    <div className="border-t border-white/5 pt-4">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium text-slate-500">Terminología</p>
-        <p className="text-xs text-slate-600">
-          Predeterminada del tipo <span className="text-slate-400">{profile.label}</span>. Solo cambia textos, no datos ni capacidades.
+    <div className="border-t border-line pt-5">
+      <SectionLabel className="!mb-1">Terminología</SectionLabel>
+      <div className="mb-3">
+        <p className="text-xs text-subtle">
+          Predeterminada del tipo <span className="text-fg">{profile.label}</span>. Solo cambia textos, no datos ni capacidades.
         </p>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-white/5">
-        <table className="w-full min-w-[560px] text-left text-xs">
+      <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <table className="w-full min-w-[600px] text-left text-sm">
           <thead>
-            <tr className="border-b border-white/5 text-xs text-slate-500">
-              <th className="px-3 py-2 font-medium">Concepto</th>
-              <th className="px-3 py-2 font-medium">Predeterminado</th>
-              <th className="px-3 py-2 font-medium">En uso</th>
-              <th className="px-3 py-2 font-medium" />
+            <tr className="border-b border-line text-2xs tracking-[0.06em] text-subtle uppercase">
+              <th className="px-3 py-2 font-semibold">Concepto</th>
+              <th className="px-3 py-2 font-semibold">Predeterminado</th>
+              <th className="px-3 py-2 font-semibold">En uso</th>
+              <th className="px-3 py-2 font-semibold"><span className="sr-only">Acciones</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-line">
             {TERM_CONCEPTS.map((concept) => {
               const d = defaultOf(concept);
               const isCustom = !!effective.customized[concept];
               const isEditing = editing === concept;
               return (
-                <tr key={concept} className={isCustom ? 'bg-indigo-500/5' : ''}>
-                  <td className="px-3 py-2 text-slate-400">{TERM_CONCEPT_LABELS[concept]}</td>
-                  <td className="px-3 py-2 text-slate-500">{d.singular} / {d.plural}</td>
+                <tr key={concept} className={isCustom ? 'bg-brand-wash' : ''}>
+                  <td className="px-3 py-2 text-muted">{TERM_CONCEPT_LABELS[concept]}</td>
+                  <td className="px-3 py-2 text-subtle">{d.singular} / {d.plural}</td>
                   <td className="px-3 py-2">
                     {isEditing ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <input
+                        <Input
+                          size="sm"
                           aria-label="Singular"
                           value={row.singular}
                           maxLength={TERM_MAX_LENGTH}
                           placeholder="Singular"
                           onChange={(e) => setRow((r) => ({ ...r, singular: e.target.value }))}
-                          className="w-28 rounded-md border border-white/10 bg-slate-950 px-2 py-1 text-xs text-white outline-none focus:border-indigo-500"
+                          className="!w-28"
                         />
-                        <input
+                        <Input
+                          size="sm"
                           aria-label="Plural"
                           value={row.plural}
                           maxLength={TERM_MAX_LENGTH}
                           placeholder="Plural"
                           onChange={(e) => setRow((r) => ({ ...r, plural: e.target.value }))}
-                          className="w-28 rounded-md border border-white/10 bg-slate-950 px-2 py-1 text-xs text-white outline-none focus:border-indigo-500"
+                          className="!w-28"
                         />
-                        <select
+                        <Select
+                          size="sm"
                           aria-label="Género"
                           value={row.gender}
                           onChange={(e) => setRow((r) => ({ ...r, gender: e.target.value }))}
-                          className="rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white outline-none"
+                          className="!w-auto"
                         >
                           <option value="m">{GENDER_LABELS.m}</option>
                           <option value="f">{GENDER_LABELS.f}</option>
-                        </select>
-                        <span className="text-xs text-slate-500">
+                        </Select>
+                        <span className="text-xs text-subtle">
                           Ej.: {row.gender === 'f' ? 'Nueva' : 'Nuevo'} {row.singular || '…'}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-white">
+                      <span className="text-fg">
                         {effective.terminology[concept]} / {effective.terminology[`${concept}s`]}
-                        {isCustom && <span className="ml-2 rounded bg-indigo-500/15 px-1.5 text-xs text-indigo-300">Personalizado</span>}
+                        {isCustom && <Badge outline tone="brand" className="ml-2">Personalizado</Badge>}
                       </span>
                     )}
-                    {isEditing && error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+                    {isEditing && error && <p role="alert" className="mt-1 text-xs text-bad">{error}</p>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     {isEditing ? (
                       <div className="flex justify-end gap-2">
-                        <button onClick={saveRow} disabled={busy} className="rounded-md bg-indigo-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-600 disabled:opacity-50">Guardar</button>
-                        <button onClick={() => setEditing(null)} className="rounded-md p-1 text-slate-500 hover:text-white" aria-label="Cancelar"><X size={14} /></button>
+                        <Button size="sm" variant="primary" onClick={saveRow} disabled={busy}>Guardar</Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditing(null)} aria-label="Cancelar" className="!h-7 !w-7"><X size={14} /></Button>
                       </div>
                     ) : (
-                      <div className="flex justify-end gap-3">
-                        <button onClick={() => startEdit(concept)} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"><Pencil size={12} /> Personalizar</button>
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" icon={Pencil} onClick={() => startEdit(concept)}>Personalizar</Button>
                         {isCustom && (
-                          <button onClick={() => resetRow(concept)} disabled={busy} className="flex items-center gap-1 text-xs text-slate-400 hover:text-white disabled:opacity-50">
-                            <RotateCcw size={12} /> Restablecer
-                          </button>
+                          <Button size="sm" variant="ghost" icon={RotateCcw} onClick={() => resetRow(concept)} disabled={busy}>
+                            Restablecer
+                          </Button>
                         )}
                       </div>
                     )}
@@ -143,7 +147,7 @@ export default function TerminologyEditor({ business, onSave, busy }) {
         </table>
       </div>
       {Object.keys(saved).length > 0 && (
-        <p className="mt-1.5 text-xs text-slate-600">Las personalizaciones se conservan aunque cambies el tipo de negocio.</p>
+        <p className="mt-2 text-xs text-subtle">Las personalizaciones se conservan aunque cambies el tipo de negocio.</p>
       )}
     </div>
   );

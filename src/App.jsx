@@ -6,7 +6,7 @@ import { useBusinesses } from './data/useBusinesses';
 import { useActivity } from './data/useActivity';
 import { usePlatformStats } from './data/usePlatformStats';
 import { usePlans } from './data/usePlans';
-import Sidebar from './components/Sidebar';
+import Sidebar, { BrandMark } from './components/Sidebar';
 import DashboardPage from './pages/DashboardPage';
 import NegociosPage from './pages/NegociosPage';
 import AdminsPage from './pages/AdminsPage';
@@ -16,12 +16,14 @@ import ActivityPage from './pages/ActivityPage';
 import SettingsPage from './pages/SettingsPage';
 
 const LoadingScreen = (
-  <div style={{ background: '#020617', width: '100vw', height: '100vh' }} />
+  <div style={{ background: 'var(--color-canvas)', width: '100vw', height: '100vh' }} />
 );
 
 function App() {
   const { user, loading, error, login, logout } = useSuperAdminAuth();
   const [page, setPage] = useState('dashboard');
+  // Negocio a abrir al llegar a "Negocios" desde un atajo del Resumen.
+  const [focus, setFocus] = useState(null); // { id, tab } | null
   const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons } = useBusinesses();
   const { activity, pushActivity } = useActivity();
   const platformStats = usePlatformStats();
@@ -47,7 +49,12 @@ function App() {
   }
   function goTo(key) {
     setPage(key);
+    setFocus(null);
     if (small) setMenuOpen(false);
+  }
+  function openBusiness(id, tab = 'resumen') {
+    setFocus({ id, tab });
+    setPage('negocios');
   }
 
   if (loading) return LoadingScreen;
@@ -57,8 +64,8 @@ function App() {
   }
 
   const pages = {
-    dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} />,
-    negocios: <NegociosPage businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} pushActivity={pushActivity} />,
+    dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} onOpenBusiness={openBusiness} onGoTo={goTo} />,
+    negocios: <NegociosPage key={focus ? `${focus.id}:${focus.tab}` : 'list'} focus={focus} onFocusDone={() => setFocus(null)} businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} pushActivity={pushActivity} />,
     administradores: <AdminsPage businesses={businesses} />,
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
     planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} setPlanActive={setPlanActive} seedLaunchPlans={seedLaunchPlans} pushActivity={pushActivity} />,
@@ -67,30 +74,35 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950">
+    <div className="flex h-screen bg-canvas">
       {menuOpen && small && (
-        <div onClick={() => setMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(0,0,0,.5)' }} />
+        <div onClick={() => setMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(5, 6, 8, 0.72)' }} />
       )}
       {menuOpen && (
         <Sidebar page={page} setPage={goTo} onLogout={logout} userEmail={user.email} onClose={() => setMenu(false)} overlay={small} />
       )}
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto">
         {!menuOpen && (
-          <button
-            type="button"
-            onClick={() => setMenu(true)}
-            aria-label="Abrir menú"
-            className="mb-4 flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-300 hover:text-white"
-          >
-            <Menu size={18} />
-            <span className="font-semibold text-white">NEXUS<span className="text-indigo-400">.</span></span>
-          </button>
+          <div className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-canvas px-4 md:px-8">
+            <button
+              type="button"
+              onClick={() => setMenu(true)}
+              aria-label="Abrir menú"
+              className="-ml-1.5 rounded-md p-1.5 text-muted hover:bg-raised hover:text-fg"
+            >
+              <Menu size={18} />
+            </button>
+            <BrandMark size={22} />
+            <span className="text-sm font-semibold text-fg">Nexus</span>
+          </div>
         )}
-        {loadingBiz ? (
-          <p className="text-sm text-slate-500">Cargando negocios…</p>
-        ) : (
-          pages[page]
-        )}
+        <div className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
+          {loadingBiz ? (
+            <p className="text-sm text-muted" role="status">Cargando negocios…</p>
+          ) : (
+            pages[page]
+          )}
+        </div>
       </main>
     </div>
   );
