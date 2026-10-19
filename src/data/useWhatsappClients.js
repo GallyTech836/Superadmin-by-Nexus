@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit as qLimit, where, onSnapshot, getCountFromServer } from 'firebase/firestore';
+import { collection, query, orderBy, limit as qLimit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 /**
- * Consumo del Asistente de WhatsApp POR CLIENTE en un período:
+ * Clientes con más respuestas del Asistente de WhatsApp en un período
+ * (solo informativo: el límite ahora es por sucursal, ver useWhatsappBranches):
  *   negocios/{id}/uso/{AAAA-MM}/clientes/{celular} = { enviados }
  * (lo escribe el backend en cada respuesta del bot).
  *
  * Devuelve:
- *   top      -> los 3 clientes con más respuestas [{ phone, enviados }]
- *   atLimit  -> cuántos clientes están AHORA en el límite (según el límite
- *               actual; si lo subes, el número baja solo)
+ *   top -> los 3 clientes con más respuestas [{ phone, enviados }]
  */
-export function useWhatsappClients(negocioId, period, clientLimit, enabled = true) {
+export function useWhatsappClients(negocioId, period, enabled = true) {
   const [top, setTop] = useState([]);
-  const [atLimit, setAtLimit] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -28,19 +26,7 @@ export function useWhatsappClients(negocioId, period, clientLimit, enabled = tru
     return () => unsub();
   }, [negocioId, period, enabled]);
 
-  // Se recalcula cuando cambia el top (hay respuestas nuevas) o el límite.
-  const topKey = top.map((t) => `${t.phone}:${t.enviados}`).join('|');
-  useEffect(() => {
-    if (!negocioId || !period || !enabled || typeof clientLimit !== 'number') { setAtLimit(null); return; }
-    let cancel = false;
-    const ref = collection(db, 'negocios', negocioId, 'uso', period, 'clientes');
-    getCountFromServer(query(ref, where('enviados', '>=', clientLimit)))
-      .then((s) => { if (!cancel) setAtLimit(s.data().count); })
-      .catch(() => { if (!cancel) setAtLimit(top.filter((t) => t.enviados >= clientLimit).length); });
-    return () => { cancel = true; };
-  }, [negocioId, period, clientLimit, enabled, topKey]);
-
-  return { top, atLimit, error };
+  return { top, error };
 }
 
 /** "59171234567" -> "+591 71234567" */

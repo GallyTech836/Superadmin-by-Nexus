@@ -15,6 +15,7 @@ import {
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
 import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
+import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
 import TerminologyEditor from './TerminologyEditor';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
@@ -31,7 +32,7 @@ const TABS = [
 const mark = (on) => (on
   ? <Check size={14} className="inline-block align-[-2px] text-ok" aria-label="Incluida" />
   : <Minus size={14} className="inline-block align-[-2px] text-subtle" aria-label="No incluida" />);
-const limitText = (cap, n) => (n === null || n === undefined ? 'Ilimitado' : `${n}${cap.limit?.period === 'month' ? '/mes' : ''}${cap.limit?.perClient ? ' por cliente' : ''}`);
+const limitText = (cap, n) => (n === null || n === undefined ? 'Ilimitado' : `${n}${cap.limit?.period === 'month' ? '/mes' : ''}${cap.limit?.perBranch ? ' por sucursal' : ''}`);
 
 function previousPeriod(period) {
   const [y, m] = period.split('-').map(Number);
@@ -336,10 +337,12 @@ export default function BusinessDetail({
   const bizActivity = activity.filter((a) => a.negocioId === business.id || (!a.negocioId && a.description?.includes(business.name))).slice(0, 50);
   const limitedCaps = CAPABILITIES.filter((c) => c.limit && c.status !== 'soon');
   const whatsappCap = getCapability('asistenteWhatsapp');
-  // WhatsApp: el límite es POR CLIENTE; el total del negocio es solo informativo.
-  const waUsage = usageStatus(whatsappCap.limit.perClient ? null : resolvedSaved.asistenteWhatsapp.limit, usage.usedFor(whatsappCap));
-  const waClientLimit = resolvedSaved.asistenteWhatsapp.limit;
-  const waClients = useWhatsappClients(business.id, usage.period, waClientLimit, tab === 'consumo');
+  // WhatsApp: el límite es POR SUCURSAL; el total del negocio y el top de clientes son solo informativos.
+  const waUsage = usageStatus(whatsappCap.limit.perBranch ? null : resolvedSaved.asistenteWhatsapp.limit, usage.usedFor(whatsappCap));
+  const waBranchLimit = resolvedSaved.asistenteWhatsapp.limit;
+  const waBranches = useWhatsappBranches(business.id, usage.period, waBranchLimit, tab === 'consumo');
+  const waClients = useWhatsappClients(business.id, usage.period, tab === 'consumo');
+  const waTotal = waUsage.used;
 
   return (
     <DetailPage title={business.name} subtitle={`${business.id} · ${business.ownerEmail}`} onBack={onClose}>
@@ -675,9 +678,9 @@ export default function BusinessDetail({
                 {limitedCaps.map((cap) => {
                   const r = resolvedSaved[cap.key];
                   const used = usage.usedFor(cap);
-                  const perClient = !!cap.limit.perClient;
-                  const st = usageStatus(perClient ? null : r.limit, used);
-                  const clientesAlLimite = perClient ? waClients.atLimit : 0;
+                  const perBranch = !!cap.limit.perBranch;
+                  const st = usageStatus(perBranch ? null : r.limit, used);
+                  const sucursalesAlLimite = perBranch ? waBranches.atLimit : 0;
                   return (
                     <tr key={cap.key}>
                       <td className="px-3 py-2 text-fg">
@@ -695,10 +698,10 @@ export default function BusinessDetail({
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        {perClient ? (
-                          // WhatsApp (límite por cliente): solo se muestra lo que no está en 0.
-                          clientesAlLimite > 0 ? (
-                            <span className="text-warn">{clientesAlLimite} {clientesAlLimite === 1 ? 'cliente' : 'clientes'} en el límite</span>
+                        {perBranch ? (
+                          // WhatsApp (límite por sucursal): solo se muestra lo que no está en 0.
+                          sucursalesAlLimite > 0 ? (
+                            <span className="text-warn">{sucursalesAlLimite} {sucursalesAlLimite === 1 ? 'sucursal' : 'sucursales'} en el límite</span>
                           ) : <span className="text-subtle">—</span>
                         ) : (
                           st.overage > 0 ? <span className="text-bad">+{st.overage}</span> : <span className="text-subtle">0</span>
@@ -710,37 +713,39 @@ export default function BusinessDetail({
               </tbody>
             </table>
           </div>
-          {/* Top 3 clientes del Asistente de WhatsApp en el período */}
+          {/* Consumo del Asistente de WhatsApp por sucursal (aquí se aplica el límite) */}
           {resolvedSaved.asistenteWhatsapp.enabled && (
             <div className="overflow-x-auto rounded-lg border border-line bg-surface">
               <p className="border-b border-line px-3 py-2.5 text-sm font-medium text-fg">
-                WhatsApp: clientes con más respuestas ({usage.period})
+                WhatsApp por sucursal ({usage.period})
                 {usage.rejectedFor(whatsappCap) > 0 && (
                   <span className="ml-2 text-xs font-normal text-subtle">· {usage.rejectedFor(whatsappCap)} mensajes sin respuesta por límite este mes</span>
                 )}
               </p>
-              {waClients.error ? (
-                <p role="alert" className="px-3 py-3 text-sm text-bad">No se pudo leer: {waClients.error}</p>
-              ) : waClients.top.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-subtle">Sin respuestas registradas por cliente en este período.</p>
+              {waBranches.error ? (
+                <p role="alert" className="px-3 py-3 text-sm text-bad">No se pudo leer: {waBranches.error}</p>
+              ) : waBranches.rows.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-subtle">Este negocio no tiene sucursales ni respuestas registradas en este período.</p>
               ) : (
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-line text-2xs tracking-[0.06em] text-subtle uppercase">
-                      <th className="px-3 py-2 font-semibold">#</th>
-                      <th className="px-3 py-2 font-semibold">Cliente (celular)</th>
+                      <th className="px-3 py-2 font-semibold">Sucursal</th>
                       <th className="px-3 py-2 font-semibold">Respuestas</th>
                       <th className="w-40 px-3 py-2 font-semibold">Del límite</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {waClients.top.map((c, i) => {
-                      const st = usageStatus(waClientLimit, c.enviados);
+                    {waBranches.rows.map((b) => {
+                      const unlinked = b.id === NO_BRANCH_ID;
+                      const st = usageStatus(waBranchLimit, b.enviados);
                       return (
-                        <tr key={c.phone}>
-                          <td className="px-3 py-2 text-subtle">{i + 1}</td>
-                          <td className="px-3 py-2 text-fg">{formatPhone(c.phone)}</td>
-                          <td className="px-3 py-2 text-fg">{c.enviados}{typeof waClientLimit === 'number' ? ` / ${waClientLimit}` : ''}</td>
+                        <tr key={b.id}>
+                          <td className="px-3 py-2 text-fg">
+                            {b.name}
+                            {unlinked && <p className="text-xs text-subtle">Números sin sucursal vinculada (el negocio tiene varias). Vincúlalos en Automatización.</p>}
+                          </td>
+                          <td className="nx-num px-3 py-2 text-fg">{b.enviados}{typeof waBranchLimit === 'number' ? ` / ${waBranchLimit}` : ''}</td>
                           <td className="px-3 py-2">
                             {st.percent === null ? <span className="text-subtle">Sin límite</span> : (
                               <div className="space-y-1">
@@ -758,10 +763,55 @@ export default function BusinessDetail({
             </div>
           )}
 
+          {/* Top 3 clientes del Asistente de WhatsApp en el período (informativo) */}
+          {resolvedSaved.asistenteWhatsapp.enabled && (
+            <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+              <p className="border-b border-line px-3 py-2.5 text-sm font-medium text-fg">
+                WhatsApp: clientes con más respuestas ({usage.period})
+              </p>
+              {waClients.error ? (
+                <p role="alert" className="px-3 py-3 text-sm text-bad">No se pudo leer: {waClients.error}</p>
+              ) : waClients.top.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-subtle">Sin respuestas registradas por cliente en este período.</p>
+              ) : (
+                <table className="w-full min-w-[480px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-2xs tracking-[0.06em] text-subtle uppercase">
+                      <th className="px-3 py-2 font-semibold">#</th>
+                      <th className="px-3 py-2 font-semibold">Cliente (celular)</th>
+                      <th className="px-3 py-2 font-semibold">Respuestas</th>
+                      <th className="w-40 px-3 py-2 font-semibold">% del mes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {waClients.top.map((c, i) => {
+                      const share = waTotal > 0 ? Math.min(100, Math.round((c.enviados / waTotal) * 100)) : null;
+                      return (
+                        <tr key={c.phone}>
+                          <td className="px-3 py-2 text-subtle">{i + 1}</td>
+                          <td className="px-3 py-2 text-fg">{formatPhone(c.phone)}</td>
+                          <td className="nx-num px-3 py-2 text-fg">{c.enviados}</td>
+                          <td className="px-3 py-2">
+                            {share === null ? <span className="text-subtle">—</span> : (
+                              <div className="space-y-1">
+                                <UsageBar percent={share} />
+                                <span className="text-muted">{share}%</span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
           <p className="text-xs text-subtle">
-            WhatsApp: el límite es por cliente (cada celular). Cuando un cliente llega a su límite del mes, el bot deja de responderle solo a él;
-            los demás siguen normales. Consumo = total de respuestas del bot en el mes. La tabla por cliente cuenta desde que se activó el límite por cliente.
-            Excedente (profesionales/sucursales) = cantidad por encima del límite.
+            WhatsApp: el límite es por sucursal (el número de WhatsApp de cada sucursal). Cuando una sucursal llega a su límite del mes, el bot deja
+            de responder solo en ese número; las demás sucursales siguen normales. Consumo = total de respuestas del bot en el mes. La tabla de
+            clientes es solo informativa. Excedente (profesionales/sucursales) = cantidad por encima del límite.
           </p>
           {usage.error && <Notice tone="bad">{usage.error}</Notice>}
 
