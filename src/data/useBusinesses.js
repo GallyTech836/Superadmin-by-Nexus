@@ -3,6 +3,7 @@ import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { computeEffectiveStatus, cleanOverrides, normalizeAddons } from '../shared/capabilityModel';
 import { isValidBusinessType, cleanTerminologyOverrides } from '../shared/businessProfileModel';
+import { getLockedModules } from '../shared/pinLockModel';
 
 // Muchos negocios existentes se auto-crearon vía useNegocio.js en GallyFlow
 // y NO tienen plan/status/subscriptionEnd todavía. Este normalizador les
@@ -42,7 +43,11 @@ function normalize(id, data) {
     adminUid: data.adminUid || null,
     assistantConfig: data.assistantConfig || null,
     analyticsPinEnabled: data.analyticsPinEnabled === true,
-    hasFinancePin: !!data.financePinHash,
+    // Módulos de Nexus que piden el PIN (negocios viejos: solo Analítica).
+    pinLockedModules: getLockedModules(data),
+    // El hash vive en negocioSecrets (Super Admin no lo lee); el backend
+    // deja financePinSet en el negocio. financePinHash = negocios viejos.
+    hasFinancePin: data.financePinSet === true || !!data.financePinHash,
   };
 }
 

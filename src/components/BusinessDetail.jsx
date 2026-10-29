@@ -19,7 +19,8 @@ import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
 import TerminologyEditor from './TerminologyEditor';
 import ExpiryNoticesSection from './ExpiryNoticesSection';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
-import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
+import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType, isModuleRelevant } from '../shared/businessProfileModel';
+import { LOCKABLE_MODULES } from '../shared/pinLockModel';
 
 const TABS = [
   { key: 'resumen', label: 'Resumen' },
@@ -281,7 +282,7 @@ export default function BusinessDetail({
     });
   }
 
-  // ── Seguridad: contraseña del admin y PIN de Analítica ──
+  // ── Seguridad: contraseña del admin y PIN del dueño ──
   const [newPassword, setNewPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [pwResult, setPwResult] = useState(null); // { email, password }
@@ -309,6 +310,19 @@ export default function BusinessDetail({
     setTimeout(() => setPwCopied(false), 2000);
   }
 
+  // Módulos que se pueden bloquear para este rubro (la Agenda nunca).
+  const lockableModules = CAPABILITY_MODULES.filter((m) => LOCKABLE_MODULES.includes(m.key) && isModuleRelevant(businessProfile, m.key));
+  // Copia local hasta que Firestore confirme, para que dos cambios seguidos no se pisen.
+  const [pendingLocked, setPendingLocked] = useState(null);
+  useEffect(() => { setPendingLocked(null); }, [business.pinLockedModules]);
+  const lockedModules = pendingLocked || business.pinLockedModules || [];
+  function toggleLockedModule(key, on) {
+    const next = on ? [...lockedModules, key] : lockedModules.filter((k) => k !== key);
+    setPendingLocked(next);
+    const label = CAPABILITY_MODULES.find((m) => m.key === key)?.label || key;
+    updatePin({ lockedModules: next }, on ? 'Módulo bloqueado con PIN' : 'Módulo desbloqueado', `${label}: ${on ? 'pide PIN' : 'sin PIN'}`);
+  }
+
   async function updatePin(body, label, okText) {
     setSecMsg({ type: '', text: '' });
     await run(async () => {
@@ -318,6 +332,7 @@ export default function BusinessDetail({
         setSecMsg({ type: 'ok', text: okText });
         await pushActivity(label, `${business.name}: ${okText}`, { negocioId: business.id });
       } catch (err) {
+        setPendingLocked(null);
         setSecMsg({ type: 'error', text: err.message });
       }
     });
@@ -950,21 +965,30 @@ export default function BusinessDetail({
           </div>
 
           <div className="rounded-lg border border-line bg-surface p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Lock size={16} className="text-brand-text" />
-                <p className="text-sm font-medium text-fg">Bloqueo de Analítica con PIN</p>
-              </div>
-              <Toggle
-                label="Bloqueo de Analítica con PIN"
-                value={business.analyticsPinEnabled}
-                disabled={busy}
-                onChange={(on) => updatePin({ enabled: on }, on ? 'PIN de Analítica activado' : 'PIN de Analítica desactivado', on ? 'bloqueo de Analítica activado' : 'bloqueo de Analítica desactivado')}
-              />
+            <div className="mb-1 flex items-center gap-2">
+              <Lock size={16} className="text-brand-text" />
+              <p className="text-sm font-medium text-fg">Bloqueo con PIN</p>
             </div>
             <p className="mb-3 text-xs text-subtle">
-              Si está activo, en Nexus la sección Analítica pide el PIN antes de mostrar ingresos y comisiones (también lo valida el backend).
-              PIN actual: <Badge tone={business.hasFinancePin ? 'ok' : 'warn'}>{business.hasFinancePin ? 'configurado' : 'sin configurar (el dueño lo crea al entrar)'}</Badge>
+              Las secciones marcadas piden el PIN del dueño en Nexus. Un solo desbloqueo abre todas por 15 minutos.
+              Analítica también la valida el backend; en las demás el PIN solo oculta la pantalla.
+            </p>
+            <div className="mb-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+              {lockableModules.map((m) => (
+                <div key={m.key} className="flex items-center justify-between gap-3 py-1">
+                  <span className="text-sm text-fg">{m.label}</span>
+                  <Toggle
+                    label={`Pedir PIN en ${m.label}`}
+                    value={lockedModules.includes(m.key)}
+                    disabled={busy}
+                    onChange={(on) => toggleLockedModule(m.key, on)}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="mb-3 text-xs text-subtle">
+              PIN actual: <Badge tone={business.hasFinancePin ? 'ok' : 'warn'}>{business.hasFinancePin ? 'configurado' : 'sin configurar'}</Badge>
+              {!business.hasFinancePin && lockedModules.length > 0 && ' — sin PIN, quien entre primero puede crearlo. Mejor fíjalo aquí.'}
             </p>
             <div className="flex flex-wrap items-end gap-2">
               <div className="w-40">
@@ -980,12 +1004,12 @@ export default function BusinessDetail({
               <ActionButton
                 icon={Lock}
                 disabled={busy || newPin.length < 4}
-                onClick={() => updatePin({ pin: newPin, enabled: true }, 'PIN de Analítica cambiado', 'PIN de Analítica actualizado y bloqueo activado')}
+                onClick={() => updatePin({ pin: newPin }, 'PIN cambiado', 'PIN actualizado')}
               >
                 Guardar PIN
               </ActionButton>
               {business.hasFinancePin && (
-                <ActionButton tone="red" disabled={busy} onClick={() => updatePin({ clearPin: true }, 'PIN de Analítica borrado', 'PIN borrado; el dueño creará uno nuevo al entrar')}>
+                <ActionButton tone="red" disabled={busy} onClick={() => updatePin({ clearPin: true }, 'PIN borrado', 'PIN borrado; el dueño creará uno nuevo al entrar')}>
                   Borrar PIN
                 </ActionButton>
               )}

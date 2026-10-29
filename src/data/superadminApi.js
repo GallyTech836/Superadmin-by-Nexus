@@ -27,7 +27,7 @@ export async function setBusinessPassword(negocioId, password) {
   return request(`/negocios/${encodeURIComponent(negocioId)}/password`, { method: 'POST', body: { password: password || '' } });
 }
 
-/** Bloqueo de Analítica: { enabled?, pin?, clearPin? } */
+/** Bloqueo con PIN: { lockedModules?: string[], pin?, clearPin? } (enabled? = viejo, solo Analítica) */
 export async function setAnalyticsPin(negocioId, body) {
   return request(`/negocios/${encodeURIComponent(negocioId)}/analytics-pin`, { method: 'POST', body });
 }
