@@ -17,6 +17,7 @@ import { useBusinessUsage } from '../data/useBusinessUsage';
 import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
 import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
 import TerminologyEditor from './TerminologyEditor';
+import ExpiryNoticesSection from './ExpiryNoticesSection';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType } from '../shared/businessProfileModel';
 
@@ -426,6 +427,8 @@ export default function BusinessDetail({
           )}
 
           {updateTerminology && <TerminologyEditor business={business} onSave={saveTerminology} busy={busy} />}
+
+          <ExpiryNoticesSection negocioId={business.id} />
 
           <div className="border-t border-line pt-5">
             <SectionLabel>Acciones</SectionLabel>

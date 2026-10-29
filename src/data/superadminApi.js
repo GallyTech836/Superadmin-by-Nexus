@@ -40,3 +40,22 @@ export async function setAnalyticsPin(negocioId, body) {
 export async function getBusinessAccess(negocioId) {
   return request(`/negocios/${encodeURIComponent(negocioId)}/access`);
 }
+
+/** Número de WhatsApp de soporte (solo dígitos con código de país). -> { whatsapp } */
+export async function getSupportConfig() {
+  return request('/config/soporte');
+}
+
+export async function setSupportConfig(whatsapp) {
+  return request('/config/soporte', { method: 'PUT', body: { whatsapp } });
+}
+
+/**
+ * Avisos de vencimiento que el admin del negocio aceptó, por período.
+ * Cada período: { tipo, fechaVencimiento, aviso7, aviso5 }; cada aviso es
+ * { aceptadoAt, diasRestantes, email } o null.
+ */
+export async function getExpiryNotices(negocioId) {
+  const data = await request(`/negocios/${encodeURIComponent(negocioId)}/avisos-vencimiento`);
+  return Array.isArray(data) ? data : (data.periodos || data.avisos || data.items || []);
+}

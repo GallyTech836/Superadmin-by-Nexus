@@ -70,7 +70,7 @@ function App() {
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
     planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} setPlanActive={setPlanActive} seedLaunchPlans={seedLaunchPlans} pushActivity={pushActivity} />,
     actividad: <ActivityPage activity={activity} businesses={businesses} />,
-    configuracion: <SettingsPage userEmail={user.email} businessCount={businesses.length} />,
+    configuracion: <SettingsPage userEmail={user.email} businessCount={businesses.length} pushActivity={pushActivity} />,
   };
 
   return (
