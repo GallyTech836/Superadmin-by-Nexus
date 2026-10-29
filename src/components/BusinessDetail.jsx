@@ -10,7 +10,7 @@ import {
 } from './common';
 import {
   CAPABILITIES, CAPABILITY_MODULES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
-  ADDONS, LEGACY_ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons,
+  ADDONS, LEGACY_ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons, getAddonForCapability,
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
@@ -82,9 +82,12 @@ export default function BusinessDetail({
     () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: business.capabilityOverrides, profileDefaults, relevantModules, addons }),
     [plan, business.capabilityOverrides, profileDefaults, relevantModules, addons],
   );
+  // Columna "Plan / tipo": solo lo que da el plan (y lo que restringe el tipo
+  // de negocio), sin complementos. Lo que suman o activan los complementos se
+  // ve en "Resultado".
   const resolvedPlan = useMemo(
-    () => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules, addons }),
-    [plan, profileDefaults, relevantModules, addons],
+    () => resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules }),
+    [plan, profileDefaults, relevantModules],
   );
   const resolvedDraft = useMemo(
     () => resolveCapabilities({ planFeatures: plan?.features || null, overrides: draft, profileDefaults, relevantModules, addons }),
@@ -599,6 +602,9 @@ export default function BusinessDetail({
                               <>
                                 {mark(planVal.enabled)}
                                 {cap.limit && planVal.enabled && <span className="ml-1 text-subtle">{limitText(cap, planVal.limit)}</span>}
+                                {r.source === 'addon' && getAddonForCapability(cap.key)?.legacy && (
+                                  <Badge tone="warn" outline className="ml-1.5 align-middle">complemento antiguo</Badge>
+                                )}
                               </>
                             )}
                           </td>
