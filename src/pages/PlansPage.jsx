@@ -451,7 +451,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs font-medium text-muted">Complementos (se contratan aparte; el plan nunca los incluye)</p>
+              <p className="mb-1.5 text-xs font-medium text-muted">Complementos (se contratan aparte del plan)</p>
               <div className="divide-y divide-line rounded-lg border border-line">
                 {ADDONS.map((a) => {
                   const v = form.addons?.[a.key] || {};

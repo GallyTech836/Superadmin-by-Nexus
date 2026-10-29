@@ -10,7 +10,7 @@ import {
 } from './common';
 import {
   CAPABILITIES, CAPABILITY_MODULES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
-  ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons,
+  ADDONS, LEGACY_ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons,
 } from '../shared/capabilityModel';
 import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
@@ -197,7 +197,8 @@ export default function BusinessDetail({
       await updateAddons(business.id, after);
       const parts = [];
       if (before.profesionalesExtra !== after.profesionalesExtra) parts.push(`Profesionales adicionales: ${before.profesionalesExtra} → ${after.profesionalesExtra}`);
-      if (before.asistenteWhatsapp !== after.asistenteWhatsapp) parts.push(`Asistente de WhatsApp: ${after.asistenteWhatsapp ? 'contratado' : 'quitado'}`);
+      if (before.sucursalesExtra !== after.sucursalesExtra) parts.push(`Sucursales adicionales: ${before.sucursalesExtra} → ${after.sucursalesExtra}`);
+      if (before.asistenteWhatsapp !== after.asistenteWhatsapp) parts.push(`Asistente de WhatsApp (complemento antiguo): ${after.asistenteWhatsapp ? 'contratado' : 'quitado'}`);
       await pushActivity('Complementos actualizados', `${business.name}: ${parts.join('; ') || 'sin cambios'}`, { negocioId: business.id, before, after });
     });
   }
@@ -497,9 +498,26 @@ export default function BusinessDetail({
                           {a.kind === 'toggle' && plan && getCapability(a.capability)?.limit ? ` · ${limitText(getCapability(a.capability), resolvedSaved[a.capability]?.limit)}` : ''}
                           {unavailable ? ' · no disponible en este plan' : ''}
                         </span>
-                        {a.key === 'asistenteWhatsapp' && addonsForm.asistenteWhatsapp && !resolvedSaved.asistenteWhatsapp.enabled && !addonsDirty && (
-                          <span className="block text-xs text-warn">Contratado, pero no activo: lo bloquea una excepción o el tipo de negocio.</span>
-                        )}
+                        {a.description && <span className="block text-xs text-subtle">{a.description}</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* Complementos antiguos: ya no se ofrecen. Solo se muestran si el
+                    negocio los tiene contratados, y solo se pueden quitar. */}
+                {LEGACY_ADDONS.filter((a) => normalizeAddons(business.addons)[a.businessField] === true).map((a) => {
+                  const offer = getAddonOffer(plan, a.key);
+                  const includedInPlan = !!resolveCapabilities({ planFeatures: plan?.features || null, profileDefaults, relevantModules })[a.capability]?.enabled;
+                  return (
+                    <div key={a.key} className="flex flex-wrap items-center gap-3">
+                      <Toggle label={a.label} value={!!addonsForm[a.businessField]} onChange={(on) => { if (!on) setAddonsForm((f) => ({ ...f, [a.businessField]: false })); }} />
+                      <span className="min-w-0 flex-1 text-sm text-fg">
+                        {a.label}
+                        <span className="ml-1.5 text-xs text-subtle">{plan ? `${plan.currency || 'Bs'} ${offer.price}/mes` : ''}</span>
+                        <span className="block text-xs text-warn">
+                          Ya no se ofrece como complemento: el asistente ahora lo incluye el plan.
+                          {includedInPlan ? ' Este plan ya lo incluye: quítalo para no cobrarlo dos veces.' : ' Si lo quitas, el negocio pierde el asistente salvo que su plan lo incluya.'}
+                        </span>
                       </span>
                     </div>
                   );
