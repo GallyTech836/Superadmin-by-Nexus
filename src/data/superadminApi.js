@@ -59,3 +59,23 @@ export async function getExpiryNotices(negocioId) {
   const data = await request(`/negocios/${encodeURIComponent(negocioId)}/avisos-vencimiento`);
   return Array.isArray(data) ? data : (data.periodos || data.avisos || data.items || []);
 }
+
+// ───────────── Asistente WhatsApp / Consumo ─────────────
+
+/**
+ * Informe de un mes: { estado, alcance, config, mensajes, conversaciones,
+ * reservas, promedioEnviadosPorReserva, promedioDiarioEnviados, diario[] }.
+ */
+export async function getAssistantMetrics(negocioId, mes) {
+  return request(`/negocios/${encodeURIComponent(negocioId)}/asistente-metricas?mes=${encodeURIComponent(mes)}`);
+}
+
+/** Últimos 12 meses con uso: { estado, config, meses[] }. */
+export async function getAssistantMetricsHistory(negocioId) {
+  return request(`/negocios/${encodeURIComponent(negocioId)}/asistente-metricas/historial`);
+}
+
+/** { startDate?: 'AAAA-MM-DD' | null, enabled?: boolean } -> { config, estado, antes } */
+export async function setAssistantMetricsConfig(negocioId, body) {
+  return request(`/negocios/${encodeURIComponent(negocioId)}/asistente-metricas/config`, { method: 'PUT', body });
+}

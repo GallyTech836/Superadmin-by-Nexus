@@ -42,6 +42,8 @@ function normalize(id, data) {
     addons: normalizeAddons(data.addons),
     adminUid: data.adminUid || null,
     assistantConfig: data.assistantConfig || null,
+    // Seguimiento del Asistente de WhatsApp: { startDate, enabled } (lo cambia el backend).
+    assistantMetrics: data.assistantMetrics || null,
     analyticsPinEnabled: data.analyticsPinEnabled === true,
     // Módulos de Nexus que piden el PIN (negocios viejos: solo Analítica).
     pinLockedModules: getLockedModules(data),

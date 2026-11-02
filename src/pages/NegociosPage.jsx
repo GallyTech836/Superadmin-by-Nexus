@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { Plus, Search, CheckCircle2, Copy, Check, Sliders } from 'lucide-react';
 import {
   StatusBadge, Modal, Field, SelectField, Label, PasswordInput, Button, PageHeader, Panel, Notice, EmptyState,
-  Segmented, Select, SectionLabel, Table, Th, Td, RowButton, STATUS_LABELS, formatDate, relativeDays,
+  Segmented, Select, SectionLabel, Table, Th, Td, RowButton, STATUS_LABELS, formatDate, relativeDays, Badge,
 } from '../components/common';
+import { trackingState, TRACKING_TONES } from '../shared/assistantMetricsModel';
 import BusinessDetail from '../components/BusinessDetail';
 import { createBusiness } from '../data/superadminApi';
 import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
@@ -167,7 +168,15 @@ export default function NegociosPage({
               const endDate = isTrialEnd ? b.trialEnd : b.subscriptionEnd;
               return (
                 <RowButton key={b.id} onActivate={() => setDetailId(b.id)} label={`Abrir ${b.name}`}>
-                  <Td className="font-medium text-fg">{b.name}</Td>
+                  <Td className="font-medium text-fg">
+                    {b.name}
+                    {/* Asistente de WhatsApp en uso pero sin medición real todavía (o pausada) */}
+                    {b.assistantConfig?.lastMessageAt && trackingState(b.assistantMetrics) !== 'medicion' && (
+                      <Badge outline tone={TRACKING_TONES[trackingState(b.assistantMetrics)]} className="ml-2 align-middle">
+                        WhatsApp: {trackingState(b.assistantMetrics) === 'pausado' ? 'pausado' : 'en pruebas'}
+                      </Badge>
+                    )}
+                  </Td>
                   <Td className="text-muted">{b.ownerName || b.ownerEmail}</Td>
                   <Td className="text-muted">{planName(b.plan)}</Td>
                   <Td><StatusBadge status={b.status} /></Td>

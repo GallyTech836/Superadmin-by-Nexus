@@ -18,6 +18,7 @@ import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
 import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
 import TerminologyEditor from './TerminologyEditor';
 import ExpiryNoticesSection from './ExpiryNoticesSection';
+import AssistantMetricsSection from './AssistantMetricsSection';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType, isModuleRelevant } from '../shared/businessProfileModel';
 import { LOCKABLE_MODULES } from '../shared/pinLockModel';
@@ -755,6 +756,11 @@ export default function BusinessDetail({
               </tbody>
             </table>
           </div>
+          {/* Métricas del Asistente de WhatsApp: consumo real, reservas y conversaciones */}
+          {(resolvedSaved.asistenteWhatsapp.enabled || business.assistantConfig) && (
+            <AssistantMetricsSection business={business} pushActivity={pushActivity} />
+          )}
+
           {/* Consumo del Asistente de WhatsApp por sucursal (aquí se aplica el límite) */}
           {resolvedSaved.asistenteWhatsapp.enabled && (
             <div className="overflow-x-auto rounded-lg border border-line bg-surface">
