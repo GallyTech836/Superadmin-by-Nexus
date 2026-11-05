@@ -24,7 +24,7 @@ function App() {
   const [page, setPage] = useState('dashboard');
   // Negocio a abrir al llegar a "Negocios" desde un atajo del Resumen.
   const [focus, setFocus] = useState(null); // { id, tab } | null
-  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons } = useBusinesses();
+  const { businesses, loading: loadingBiz, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, updateBookingForm } = useBusinesses();
   const { activity, pushActivity } = useActivity();
   const platformStats = usePlatformStats();
   const { plans, createPlan, updatePlan: updatePlanDef, deletePlan, setPlanActive, seedLaunchPlans } = usePlans();
@@ -65,7 +65,7 @@ function App() {
 
   const pages = {
     dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} onOpenBusiness={openBusiness} onGoTo={goTo} />,
-    negocios: <NegociosPage key={focus ? `${focus.id}:${focus.tab}` : 'list'} focus={focus} onFocusDone={() => setFocus(null)} businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} pushActivity={pushActivity} />,
+    negocios: <NegociosPage key={focus ? `${focus.id}:${focus.tab}` : 'list'} focus={focus} onFocusDone={() => setFocus(null)} businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} updateBookingForm={updateBookingForm} pushActivity={pushActivity} />,
     administradores: <AdminsPage businesses={businesses} />,
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
     planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} setPlanActive={setPlanActive} seedLaunchPlans={seedLaunchPlans} pushActivity={pushActivity} />,

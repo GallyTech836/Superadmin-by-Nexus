@@ -17,6 +17,7 @@ import { useBusinessUsage } from '../data/useBusinessUsage';
 import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
 import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
 import TerminologyEditor from './TerminologyEditor';
+import BookingFormEditor from './BookingFormEditor';
 import ExpiryNoticesSection from './ExpiryNoticesSection';
 import AssistantMetricsSection from './AssistantMetricsSection';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
@@ -55,7 +56,7 @@ function ActionButton({ onClick, tone = 'indigo', icon, children, disabled }) {
 
 export default function BusinessDetail({
   business, plans, activity = [], onClose, initialTab = 'resumen',
-  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
+  updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, updateBookingForm, pushActivity,
 }) {
   const [tab, setTab] = useState(initialTab);
   const plan = plans.find((p) => p.id === business.plan) || null;
@@ -233,6 +234,15 @@ export default function BusinessDetail({
       await updateTerminology(business.id, overrides);
       const what = value ? `${value.singular} / ${value.plural}` : 'predeterminado del tipo';
       await pushActivity('Terminología actualizada', `${business.name}: término "${concept}" → ${what}`, { negocioId: business.id });
+    });
+  }
+
+  // ── Formulario de reserva (peluquería canina) ──
+  async function saveBookingForm(config) {
+    await run(async () => {
+      await updateBookingForm(business.id, business.businessType, config);
+      const activos = config.fields.filter((f) => f.enabled).map((f) => `${f.label}${f.required ? '*' : ''}`).join(', ');
+      await pushActivity('Formulario de reserva actualizado', `${business.name}: ${activos}`, { negocioId: business.id });
     });
   }
 
@@ -443,6 +453,8 @@ export default function BusinessDetail({
           )}
 
           {updateTerminology && <TerminologyEditor business={business} onSave={saveTerminology} busy={busy} />}
+
+          {updateBookingForm && <BookingFormEditor business={business} onSave={saveBookingForm} busy={busy} />}
 
           <ExpiryNoticesSection negocioId={business.id} />
 

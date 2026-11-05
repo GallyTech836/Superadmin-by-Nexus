@@ -17,7 +17,7 @@ const emptyForm = {
 };
 
 export default function NegociosPage({
-  focus, onFocusDone, businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, pushActivity,
+  focus, onFocusDone, businesses, plans, activity, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, updateBookingForm, pushActivity,
 }) {
   function planName(planId) {
     return plans.find((p) => p.id === planId)?.name || 'Sin plan';
@@ -109,6 +109,7 @@ export default function NegociosPage({
         updateTrial={updateTrial}
         updateTerminology={updateTerminology}
         updateAddons={updateAddons}
+        updateBookingForm={updateBookingForm}
         pushActivity={pushActivity}
       />
     );

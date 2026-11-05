@@ -4,6 +4,7 @@ import { db } from '../firebase/config';
 import { computeEffectiveStatus, cleanOverrides, normalizeAddons } from '../shared/capabilityModel';
 import { isValidBusinessType, cleanTerminologyOverrides } from '../shared/businessProfileModel';
 import { getLockedModules } from '../shared/pinLockModel';
+import { getFormTemplateKey, cleanBookingFormConfig } from '../shared/bookingFormModel';
 
 // Muchos negocios existentes se auto-crearon vía useNegocio.js en GallyFlow
 // y NO tienen plan/status/subscriptionEnd todavía. Este normalizador les
@@ -28,6 +29,8 @@ function normalize(id, data) {
     businessType: isValidBusinessType(data.businessType) ? data.businessType : null,
     // Personalización de términos (solo textos). {} = usa los del tipo.
     terminologyOverrides: cleanTerminologyOverrides(data.terminologyOverrides),
+    // Formulario de reserva (peluquería canina). null = usa la plantilla.
+    bookingFormConfig: data.bookingFormConfig || null,
     // 'trial' era un valor fijo viejo (no es un ID de plan real).
     plan: data.plan && data.plan !== 'trial' ? data.plan : null,
     rawStatus,
@@ -107,6 +110,13 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), { terminologyOverrides: cleanTerminologyOverrides(overrides) });
   }
 
+  /** Formulario de reserva del negocio (solo si su tipo tiene plantilla). */
+  async function updateBookingForm(id, businessType, config) {
+    const key = getFormTemplateKey(businessType);
+    if (!key) throw new Error('Este tipo de negocio no tiene formulario.');
+    await updateDoc(doc(db, 'negocios', id), { bookingFormConfig: cleanBookingFormConfig(key, config) });
+  }
+
   /** Prueba gratuita: { trialStart, trialEnd, trialDays } y opcionalmente status. */
   async function updateTrial(id, { trialStart, trialEnd, trialDays, status }) {
     const patch = {
@@ -118,5 +128,5 @@ export function useBusinesses() {
     await updateDoc(doc(db, 'negocios', id), patch);
   }
 
-  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons };
+  return { businesses, loading, updateStatus, updatePlan, updateInfo, updateSubscriptionEnd, updateOverrides, updateTrial, updateTerminology, updateAddons, updateBookingForm };
 }
