@@ -14,6 +14,7 @@ import SubscriptionsPage from './pages/SubscriptionsPage';
 import PlansPage from './pages/PlansPage';
 import ActivityPage from './pages/ActivityPage';
 import SettingsPage from './pages/SettingsPage';
+import SolicitudesPage from './pages/SolicitudesPage';
 
 const LoadingScreen = (
   <div style={{ background: 'var(--color-canvas)', width: '100vw', height: '100vh' }} />
@@ -66,6 +67,7 @@ function App() {
   const pages = {
     dashboard: <DashboardPage businesses={businesses} plans={plans} platformStats={platformStats} onOpenBusiness={openBusiness} onGoTo={goTo} />,
     negocios: <NegociosPage key={focus ? `${focus.id}:${focus.tab}` : 'list'} focus={focus} onFocusDone={() => setFocus(null)} businesses={businesses} plans={plans} activity={activity} updateStatus={updateStatus} updatePlan={updatePlan} updateInfo={updateInfo} updateSubscriptionEnd={updateSubscriptionEnd} updateOverrides={updateOverrides} updateTrial={updateTrial} updateTerminology={updateTerminology} updateAddons={updateAddons} updateBookingForm={updateBookingForm} pushActivity={pushActivity} />,
+    solicitudes: <SolicitudesPage plans={plans} pushActivity={pushActivity} onOpenBusiness={(id) => openBusiness(id)} />,
     administradores: <AdminsPage businesses={businesses} />,
     suscripciones: <SubscriptionsPage businesses={businesses} plans={plans} updatePlan={updatePlan} updateSubscriptionEnd={updateSubscriptionEnd} pushActivity={pushActivity} />,
     planes: <PlansPage plans={plans} businesses={businesses} createPlan={createPlan} updatePlan={updatePlanDef} deletePlan={deletePlan} setPlanActive={setPlanActive} seedLaunchPlans={seedLaunchPlans} pushActivity={pushActivity} />,

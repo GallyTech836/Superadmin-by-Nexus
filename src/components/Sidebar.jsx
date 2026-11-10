@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Building2, Users, CreditCard, Layers, Activity, Settings, LogOut, X,
+  LayoutDashboard, Building2, Users, CreditCard, Layers, Activity, Settings, LogOut, X, Inbox,
 } from 'lucide-react';
 
 const NAV_GROUPS = [
@@ -11,6 +11,7 @@ const NAV_GROUPS = [
     label: 'Operación',
     items: [
       { key: 'negocios', label: 'Negocios', icon: Building2 },
+      { key: 'solicitudes', label: 'Solicitudes', icon: Inbox },
       { key: 'suscripciones', label: 'Suscripciones', icon: CreditCard },
       { key: 'planes', label: 'Planes', icon: Layers },
     ],
