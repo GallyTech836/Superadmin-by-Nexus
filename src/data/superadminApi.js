@@ -79,3 +79,29 @@ export async function getAssistantMetricsHistory(negocioId) {
 export async function setAssistantMetricsConfig(negocioId, body) {
   return request(`/negocios/${encodeURIComponent(negocioId)}/asistente-metricas/config`, { method: 'PUT', body });
 }
+
+// ───────────── Solicitudes de registro (formulario público /registro) ─────────────
+
+/**
+ * Solicitudes enviadas desde nexusbo.vercel.app/registro.
+ * status: 'pendiente' | 'creada' | 'descartada' | 'todas'
+ * -> { solicitudes: [{ id, status, createdAt, updatedAt, negocioId, note, data }] }
+ */
+export async function listSolicitudes(status = 'pendiente') {
+  const data = await request(`/solicitudes?status=${encodeURIComponent(status)}`);
+  return Array.isArray(data) ? data : (data.solicitudes || []);
+}
+
+/** Cambia el estado a mano: { status: 'pendiente' | 'descartada', note? } */
+export async function updateSolicitud(id, body) {
+  return request(`/solicitudes/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+}
+
+/**
+ * Crea el negocio completo a partir de la solicitud (Auth + negocio + sucursales
+ * + horarios + servicios + profesionales sin acceso). Siempre en prueba.
+ * body: { planId, trialDays } -> { id, email, tempPassword, creados: { sucursales, servicios, profesionales } }
+ */
+export async function createFromSolicitud(id, body) {
+  return request(`/solicitudes/${encodeURIComponent(id)}/crear`, { method: 'POST', body });
+}
