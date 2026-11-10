@@ -229,7 +229,7 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
           </div>
           <p className="mt-3 text-xs text-subtle">
             La cuenta del administrador se crea con el correo {neg.ownerEmail || '—'} y una contraseña temporal que verás una sola vez.
-            Los profesionales quedan sin acceso hasta que el negocio les genere usuario y contraseña.
+            A cada profesional se le asigna un usuario y un PIN; la contraseña se la pone el negocio al editarlo en AdminApp.
           </p>
         </Panel>
       )}
@@ -354,6 +354,16 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
       {created && (
         <Modal title="Negocio creado" onClose={async () => { setCreated(null); await onChanged(); }}>
           <Notice tone="warn" title="Guarda estos datos ahora">La contraseña temporal no se vuelve a mostrar.</Notice>
+          {['profesionales', 'sucursales'].map((k) => {
+            const q = created.cupos?.[k];
+            if (!q || !(q.over > 0)) return null;
+            return (
+              <Notice key={k} tone="warn" title={`Más ${k} que los que incluye el plan`} className="mt-3">
+                Tiene {q.used} y el plan incluye {q.limit}. Se crearon igual, pero no podrá agregar más hasta que le sumes
+                {k === 'profesionales' ? ' «Profesional adicional»' : ' «Sucursal adicional»'} en el negocio o cambies el plan.
+              </Notice>
+            );
+          })}
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex flex-wrap justify-between gap-2"><dt className="text-subtle">Negocio</dt><dd className="text-fg">{created.id}</dd></div>
             <div className="flex flex-wrap justify-between gap-2"><dt className="text-subtle">Correo</dt><dd className="text-fg">{created.email || neg.ownerEmail}</dd></div>

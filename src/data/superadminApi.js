@@ -99,8 +99,9 @@ export async function updateSolicitud(id, body) {
 
 /**
  * Crea el negocio completo a partir de la solicitud (Auth + negocio + sucursales
- * + horarios + servicios + profesionales sin acceso). Siempre en prueba.
- * body: { planId, trialDays } -> { id, email, tempPassword, creados: { sucursales, servicios, profesionales } }
+ * + horarios + servicios + profesionales sin contraseña). Siempre en prueba.
+ * body: { planId, trialDays } -> { id, email, tempPassword, creados: { sucursales, servicios, profesionales },
+ *   cupos: { profesionales, sucursales } con { limit, used, over } }
  */
 export async function createFromSolicitud(id, body) {
   return request(`/solicitudes/${encodeURIComponent(id)}/crear`, { method: 'POST', body });
