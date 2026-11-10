@@ -16,6 +16,15 @@ export const BILLING_LABELS = Object.fromEntries(BILLING_CYCLES.map((c) => [c.ke
 
 export const DEFAULT_TRIAL_DAYS = 14;
 
+/**
+ * Días de prueba del plan. 0 = el plan no tiene prueba (ej. Profesional, por
+ * el costo de activar el Asistente de WhatsApp). Vacío = DEFAULT_TRIAL_DAYS.
+ */
+export function planTrialDays(plan) {
+  if (plan && Number(plan.trialDays) === 0 && plan.trialDays !== null && plan.trialDays !== '') return 0;
+  return Number(plan?.trialDays) || DEFAULT_TRIAL_DAYS;
+}
+
 export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }

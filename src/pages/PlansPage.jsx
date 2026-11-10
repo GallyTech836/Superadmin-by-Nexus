@@ -3,7 +3,7 @@ import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, Link2, L
 import {
   Modal, Field, SelectField, Toggle, LimitInput, CapStatusBadge, Button, Badge, PageHeader, Notice, EmptyState, Segmented, Label, Input,
 } from '../components/common';
-import { BILLING_CYCLES, BILLING_LABELS, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
+import { BILLING_CYCLES, BILLING_LABELS, DEFAULT_TRIAL_DAYS, formatPrice, planTrialDays } from '../data/planFeatures';
 import {
   CAPABILITIES,
   CAPABILITY_MODULES,
@@ -319,7 +319,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
                 </div>
                 <div>
                   <dt className="text-xs text-subtle">Prueba</dt>
-                  <dd className="mt-0.5 text-fg">{plan.trialDays || DEFAULT_TRIAL_DAYS} días</dd>
+                  <dd className="mt-0.5 text-fg">{planTrialDays(plan) ? `${planTrialDays(plan)} días` : 'Sin prueba'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-subtle">Activación</dt>
@@ -496,7 +496,7 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
               </div>
               <div className="w-48">
                 <Field
-                  label="Días de prueba (opcional)"
+                  label="Días de prueba (0 = sin prueba)"
                   type="number"
                   min="0"
                   placeholder={String(DEFAULT_TRIAL_DAYS)}

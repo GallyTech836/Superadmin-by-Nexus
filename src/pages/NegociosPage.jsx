@@ -7,7 +7,7 @@ import {
 import { trackingState, TRACKING_TONES } from '../shared/assistantMetricsModel';
 import BusinessDetail from '../components/BusinessDetail';
 import { createBusiness } from '../data/superadminApi';
-import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
+import { DEFAULT_TRIAL_DAYS, planTrialDays } from '../data/planFeatures';
 import { cleanOverrides, isPlanCompatible } from '../shared/capabilityModel';
 import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, getBusinessTypeLabel, getBusinessProfile } from '../shared/businessProfileModel';
 
@@ -56,7 +56,8 @@ export default function NegociosPage({
 
   function openCreate() {
     const firstPlan = activePlans[0];
-    setForm({ ...emptyForm, plan: firstPlan?.id || '', trialDays: firstPlan?.trialDays || DEFAULT_TRIAL_DAYS });
+    const days = firstPlan ? planTrialDays(firstPlan) : DEFAULT_TRIAL_DAYS;
+    setForm({ ...emptyForm, plan: firstPlan?.id || '', status: days ? 'trial' : 'active', trialDays: days || DEFAULT_TRIAL_DAYS });
     setShowCreate(true);
   }
 
@@ -282,7 +283,9 @@ export default function NegociosPage({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <SelectField label="Plan" value={form.plan} onChange={(e) => {
                     const p = plans.find((x) => x.id === e.target.value);
-                    setForm((f) => ({ ...f, plan: e.target.value, trialDays: p?.trialDays || f.trialDays }));
+                    const days = p ? planTrialDays(p) : DEFAULT_TRIAL_DAYS;
+                    // Plan sin prueba (trialDays 0): el negocio se crea activo.
+                    setForm((f) => ({ ...f, plan: e.target.value, status: days ? f.status : 'active', trialDays: days || f.trialDays }));
                   }}>
                     <option value="">Sin plan (mínimo: 2 profesionales, 1 sucursal)</option>
                     {activePlans
@@ -290,7 +293,7 @@ export default function NegociosPage({
                       .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </SelectField>
                   <SelectField label="Estado inicial" value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
-                    <option value="trial">Prueba</option>
+                    <option value="trial" disabled={!!form.plan && planTrialDays(plans.find((x) => x.id === form.plan)) === 0}>Prueba</option>
                     <option value="active">Activo</option>
                   </SelectField>
                   {form.status === 'trial' && (

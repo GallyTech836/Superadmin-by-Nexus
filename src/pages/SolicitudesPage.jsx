@@ -5,12 +5,12 @@ import {
   RowButton, Segmented, SelectField, Table, Td, Th, formatDateTime,
 } from '../components/common';
 import { listSolicitudes, updateSolicitud, createFromSolicitud } from '../data/superadminApi';
-import { DEFAULT_TRIAL_DAYS } from '../data/planFeatures';
+import { DEFAULT_TRIAL_DAYS, planTrialDays } from '../data/planFeatures';
 import { getBusinessTypeLabel } from '../shared/businessProfileModel';
 
 // Solicitudes que llegan desde el formulario público nexusbo.vercel.app/registro.
 // El backend las guarda en `solicitudesRegistro`; desde aquí se revisan y, con
-// un botón, se crea el negocio completo (siempre en prueba).
+// un botón, se crea el negocio completo (en prueba, o activo si el plan no tiene prueba).
 
 const STATUS = {
   pendiente: { label: 'Pendiente', tone: 'warn' },
@@ -137,7 +137,7 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
   const activePlans = useMemo(() => (plans || []).filter((p) => p.active !== false), [plans]);
   const defaultPlan = activePlans.find((p) => /esencial/i.test(p.name || '')) || activePlans[0];
   const [planId, setPlanId] = useState(defaultPlan?.id || '');
-  const [trialDays, setTrialDays] = useState(String(defaultPlan?.trialDays || DEFAULT_TRIAL_DAYS));
+  const [trialDays, setTrialDays] = useState(String(defaultPlan ? planTrialDays(defaultPlan) || DEFAULT_TRIAL_DAYS : DEFAULT_TRIAL_DAYS));
   const [confirming, setConfirming] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [note, setNote] = useState('');
@@ -149,6 +149,7 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
   const svcName = (id) => services.find((s) => s.tempId === id)?.name;
   const plan = activePlans.find((p) => p.id === planId);
   const wa = waLink(neg.phone);
+  const sinPrueba = !!plan && planTrialDays(plan) === 0;
   const days = Math.max(1, Math.min(365, Number(trialDays) || DEFAULT_TRIAL_DAYS));
 
   async function handleCreate() {
@@ -156,7 +157,7 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
     setError('');
     try {
       const res = await createFromSolicitud(solicitud.id, { planId, trialDays: days });
-      await pushActivity?.('Negocio creado desde solicitud', `${neg.name} (${neg.ownerEmail}) · plan ${plan?.name || '—'} en prueba ${days} días`, {
+      await pushActivity?.('Negocio creado desde solicitud', `${neg.name} (${neg.ownerEmail}) · plan ${plan?.name || '—'} ${sinPrueba ? 'activo' : `en prueba ${days} días`}`, {
         negocioId: res.id, planId: planId || null,
       });
       setCreated(res);
@@ -215,13 +216,15 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
       {error && <Notice tone="bad" title="No se pudo completar la acción" className="mb-4">{error}</Notice>}
 
       {solicitud.status === 'pendiente' && (
-        <Panel title="Crear negocio" description="Se crea con todo lo que llenó el dueño, en período de prueba." className="mb-4">
+        <Panel title="Crear negocio" description="Se crea con todo lo que llenó el dueño, en prueba (o activo si el plan no tiene prueba)." className="mb-4">
           <div className="grid gap-4 sm:grid-cols-[1fr_160px_auto] sm:items-end">
-            <SelectField label="Plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>
+            <SelectField label="Plan" value={planId} onChange={(e) => { setPlanId(e.target.value); const p = activePlans.find((x) => x.id === e.target.value); if (p && planTrialDays(p)) setTrialDays(String(planTrialDays(p))); }}>
               {activePlans.length === 0 && <option value="">Sin planes activos</option>}
               {activePlans.map((p) => <option key={p.id} value={p.id}>{p.name} · {bs(p.price)}</option>)}
             </SelectField>
-            <Field label="Días de prueba" type="number" min="1" max="365" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} />
+            {sinPrueba
+              ? <p className="pb-2 text-sm text-muted">Sin prueba: se crea activo.</p>
+              : <Field label="Días de prueba" type="number" min="1" max="365" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} />}
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" onClick={() => setConfirming(true)} disabled={!planId || busy}>Crear negocio</Button>
               <Button variant="ghost" onClick={() => setDiscarding(true)} disabled={busy}>Descartar</Button>
@@ -332,7 +335,7 @@ function SolicitudDetail({ solicitud, plans, pushActivity, onOpenBusiness, onBac
         <Modal title="Crear negocio" onClose={() => !busy && setConfirming(false)}>
           <p className="text-sm text-muted">
             Se creará <span className="text-fg">{neg.name}</span> con {branches.length} {branches.length === 1 ? 'sucursal' : 'sucursales'}, {pros.length} profesionales y {services.length} servicios,
-            en el plan <span className="text-fg">{plan?.name || '—'}</span> con {days} días de prueba.
+            en el plan <span className="text-fg">{plan?.name || '—'}</span>{sinPrueba ? ', activo (este plan no tiene prueba).' : ` con ${days} días de prueba.`}
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <Button onClick={() => setConfirming(false)} disabled={busy}>Cancelar</Button>

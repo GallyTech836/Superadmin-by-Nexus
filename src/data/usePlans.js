@@ -57,7 +57,9 @@ export function usePlans() {
       currency: data.currency || 'Bs',
       billingCycle: data.billingCycle || 'monthly',
       active: data.active !== false,
-      trialDays: data.trialDays ? Number(data.trialDays) : null,
+      // '' = por defecto (14). 0 = plan sin prueba.
+      trialDays: data.trialDays === '' || data.trialDays === null || data.trialDays === undefined || !Number.isFinite(Number(data.trialDays))
+        ? null : Math.max(0, Math.floor(Number(data.trialDays))),
       vertical,
       order: data.order === '' || data.order === undefined || data.order === null ? null : Number(data.order) || null,
       setupFee: Number.isFinite(setupFee) && setupFee > 0 ? setupFee : 0,
