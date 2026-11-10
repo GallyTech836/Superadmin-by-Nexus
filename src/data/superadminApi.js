@@ -106,3 +106,20 @@ export async function updateSolicitud(id, body) {
 export async function createFromSolicitud(id, body) {
   return request(`/solicitudes/${encodeURIComponent(id)}/crear`, { method: 'POST', body });
 }
+
+// ───────────── Eliminar negocio ─────────────
+
+/**
+ * days = 0: borra ya todo el negocio. 1..90: lo suspende y lo borra en esa fecha.
+ * confirm = ID del negocio. Exige haber reingresado la contraseña hace poco
+ * (reauthenticateWithCredential + getIdToken(true)).
+ * -> { deleted: true, summary } | { deleted: false, deletion: { scheduledFor, … } }
+ */
+export async function deleteBusiness(negocioId, { days, confirm }) {
+  return request(`/negocios/${encodeURIComponent(negocioId)}/eliminar`, { method: 'POST', body: { days, confirm } });
+}
+
+/** Cancela el borrado programado y devuelve el estado anterior. */
+export async function cancelBusinessDeletion(negocioId) {
+  return request(`/negocios/${encodeURIComponent(negocioId)}/eliminar`, { method: 'DELETE' });
+}

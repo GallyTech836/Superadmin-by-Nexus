@@ -41,6 +41,8 @@ function normalize(id, data) {
     trialEnd,
     trialDays: data.trialDays || null,
     capabilityOverrides: data.capabilityOverrides || {},
+    // Eliminación programada desde Super Admin: { scheduledFor, prevStatus, … } o null.
+    deletion: data.deletion && data.deletion.scheduledFor ? data.deletion : null,
     // Complementos contratados aparte del plan (profesionales extra, WhatsApp).
     addons: normalizeAddons(data.addons),
     adminUid: data.adminUid || null,

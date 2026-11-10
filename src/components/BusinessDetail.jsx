@@ -20,6 +20,7 @@ import TerminologyEditor from './TerminologyEditor';
 import BookingFormEditor from './BookingFormEditor';
 import ExpiryNoticesSection from './ExpiryNoticesSection';
 import AssistantMetricsSection from './AssistantMetricsSection';
+import DeleteBusinessPanel from './DeleteBusinessPanel';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType, isModuleRelevant } from '../shared/businessProfileModel';
 import { LOCKABLE_MODULES } from '../shared/pinLockModel';
@@ -377,6 +378,16 @@ export default function BusinessDetail({
 
   return (
     <DetailPage title={business.name} subtitle={`${business.id} · ${business.ownerEmail}`} onBack={onClose}>
+      {business.deletion?.scheduledFor && (
+        <Notice
+          tone="bad"
+          title={`Se elimina el ${formatDateTime(business.deletion.scheduledFor)}`}
+          className="mb-4"
+          action={tab !== 'seguridad' ? <Button size="sm" onClick={() => setTab('seguridad')}>Ver</Button> : null}
+        >
+          Está suspendido hasta entonces. Puedes cancelarlo en Seguridad.
+        </Notice>
+      )}
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
 
       {/* ─────────── RESUMEN ─────────── */}
@@ -1033,6 +1044,8 @@ export default function BusinessDetail({
               )}
             </div>
           </div>
+
+          <DeleteBusinessPanel business={business} pushActivity={pushActivity} onDeleted={onClose} />
         </div>
       )}
 
