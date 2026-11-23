@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   DetailPage, Field, SelectField, StatusBadge, Tabs, Toggle, LimitInput, CapStatusBadge, UsageBar, SOURCE_LABELS, STATUS_LABELS,
-  Button, Badge, Info, Input, Select, Label, PasswordInput, Panel, Notice, SectionLabel, Segmented, EmptyState,
+  Button, Badge, Info, Input, Select, Label, PasswordInput, Panel, Notice, SectionLabel, Segmented, EmptyState, Modal,
   daysRemaining, formatDateTime, formatDate, relativeDays,
 } from './common';
 import {
@@ -21,6 +21,7 @@ import BookingFormEditor from './BookingFormEditor';
 import ExpiryNoticesSection from './ExpiryNoticesSection';
 import AssistantMetricsSection from './AssistantMetricsSection';
 import DeleteBusinessPanel from './DeleteBusinessPanel';
+import { useToast, errorText } from './Toast';
 import { getBusinessAccess, setBusinessPassword, setAnalyticsPin } from '../data/superadminApi';
 import { BUSINESS_TYPES, getBusinessProfile, getBusinessTypeLabel, resolveBusinessType, isModuleRelevant } from '../shared/businessProfileModel';
 import { LOCKABLE_MODULES } from '../shared/pinLockModel';
@@ -64,7 +65,21 @@ export default function BusinessDetail({
   const planName = plan?.name || 'Sin plan';
 
   const [busy, setBusy] = useState(false);
-  const run = async (fn) => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
+  const toast = useToast();
+  // Ejecuta una acción de guardado: bloquea los botones mientras corre y
+  // avisa siempre cómo terminó (antes un error de Firestore no se veía).
+  const run = async (fn, okMsg) => {
+    setBusy(true);
+    try {
+      await fn();
+      if (okMsg) toast.ok(okMsg);
+    } catch (err) {
+      console.error(err);
+      toast.error(`No se pudo guardar. ${errorText(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // ── Uso / consumo ──
   const [period, setPeriod] = useState(null);
@@ -133,7 +148,7 @@ export default function BusinessDetail({
         { negocioId: business.id, before, after },
       );
       setDraftDirty(false);
-    });
+    }, 'Capacidades guardadas');
   }
 
   // ── Estado / plan ──
@@ -152,7 +167,7 @@ export default function BusinessDetail({
       await pushActivity(label, `${business.name} cambió su estado a ${STATUS_LABELS[status]}`, {
         negocioId: business.id, before, after: { status, subscriptionEnd: newEnd ?? business.subscriptionEnd },
       });
-    });
+    }, `${business.name}: ${STATUS_LABELS[status]}`);
   }
 
   // Si el plan nuevo permite menos de lo que el negocio ya tiene, NO se borra
@@ -166,17 +181,28 @@ export default function BusinessDetail({
       .filter((x) => typeof x.limit === 'number' && typeof x.used === 'number' && x.used > x.limit);
   }
 
+  // Cambio de plan que supera límites: espera confirmación en un modal propio.
+  const [planConfirm, setPlanConfirm] = useState(null); // { planId, next, exceeded } | null
+
   async function changePlan(planId) {
     if (planId === (business.plan || '')) return;
     const next = plans.find((p) => p.id === planId) || null;
     // Conteo fresco del servidor (no el que se cargó al abrir el detalle).
-    const fresh = await usage.refreshCounts();
+    let fresh = null;
+    try {
+      fresh = await usage.refreshCounts();
+    } catch (err) {
+      console.error(err);
+    }
     const exceeded = exceededWith(next, fresh || usage.counts);
     if (exceeded.length) {
-      const detail = exceeded.map((x) => `${x.key}: tiene ${x.used}, el plan permite ${x.limit}`).join('\n');
-      const ok = window.confirm(`${business.name} supera los límites de "${next?.name || 'Sin plan'}":\n${detail}\n\nNo se eliminará nada. No podrá registrar nuevos hasta cumplir el límite o ampliar su capacidad. ¿Cambiar de todos modos?`);
-      if (!ok) return;
+      setPlanConfirm({ planId, next, exceeded });
+      return;
     }
+    await applyPlan(planId, next, exceeded);
+  }
+
+  async function applyPlan(planId, next, exceeded) {
     await run(async () => {
       await updatePlan(business.id, planId || null);
       const newEnd = computeSubscriptionEnd(next);
@@ -187,7 +213,7 @@ export default function BusinessDetail({
         before: { plan: business.plan, subscriptionEnd: business.subscriptionEnd },
         after: { plan: planId || null, subscriptionEnd: newEnd },
       });
-    });
+    }, `Plan cambiado a ${next?.name || 'Sin plan'}`);
   }
 
   // ── Complementos (aparte del plan) ──
@@ -208,7 +234,7 @@ export default function BusinessDetail({
       if (before.sucursalesExtra !== after.sucursalesExtra) parts.push(`Sucursales adicionales: ${before.sucursalesExtra} → ${after.sucursalesExtra}`);
       if (before.asistenteWhatsapp !== after.asistenteWhatsapp) parts.push(`Asistente de WhatsApp (complemento antiguo): ${after.asistenteWhatsapp ? 'contratado' : 'quitado'}`);
       await pushActivity('Complementos actualizados', `${business.name}: ${parts.join('; ') || 'sin cambios'}`, { negocioId: business.id, before, after });
-    });
+    }, 'Complementos guardados');
   }
 
   // ── Información ──
@@ -226,7 +252,7 @@ export default function BusinessDetail({
       await updateInfo(business.id, infoForm);
       await pushActivity('Datos actualizados', `Se editó la información de ${business.name}`, { negocioId: business.id });
       setEditingInfo(false);
-    });
+    }, 'Datos guardados');
   }
 
   // ── Terminología (solo textos) ──
@@ -235,7 +261,7 @@ export default function BusinessDetail({
       await updateTerminology(business.id, overrides);
       const what = value ? `${value.singular} / ${value.plural}` : 'predeterminado del tipo';
       await pushActivity('Terminología actualizada', `${business.name}: término "${concept}" → ${what}`, { negocioId: business.id });
-    });
+    }, 'Terminología guardada');
   }
 
   // ── Formulario de reserva (peluquería canina) ──
@@ -244,7 +270,7 @@ export default function BusinessDetail({
       await updateBookingForm(business.id, business.businessType, config);
       const activos = config.fields.filter((f) => f.enabled).map((f) => `${f.label}${f.required ? '*' : ''}`).join(', ');
       await pushActivity('Formulario de reserva actualizado', `${business.name}: ${activos}`, { negocioId: business.id });
-    });
+    }, 'Formulario de reserva guardado');
   }
 
   // ── Prueba gratuita ──
@@ -268,7 +294,7 @@ export default function BusinessDetail({
       await pushActivity('Prueba iniciada', `${business.name}: prueba de ${days} días (hasta ${end})`, {
         negocioId: business.id, before: { status: business.rawStatus, trialEnd: business.trialEnd }, after: { status: 'trial', trialStart: start, trialEnd: end },
       });
-    });
+    }, `Prueba iniciada: ${days} días`);
   }
 
   async function extendTrial(days) {
@@ -282,7 +308,7 @@ export default function BusinessDetail({
       await pushActivity('Prueba extendida', `${business.name}: +${days} días (ahora vence ${end})`, {
         negocioId: business.id, before: { trialEnd: business.trialEnd }, after: { trialEnd: end },
       });
-    });
+    }, `Prueba extendida +${days} días`);
   }
 
   async function saveTrialDates() {
@@ -291,7 +317,7 @@ export default function BusinessDetail({
       await pushActivity('Prueba editada', `${business.name}: prueba ${trialForm.trialStart || '—'} → ${trialForm.trialEnd || '—'}`, {
         negocioId: business.id, before: { trialStart: business.trialStart, trialEnd: business.trialEnd }, after: { trialStart: trialForm.trialStart, trialEnd: trialForm.trialEnd },
       });
-    });
+    }, 'Fechas de prueba guardadas');
   }
 
   // ── Seguridad: contraseña del admin y PIN del dueño ──
@@ -1069,6 +1095,39 @@ export default function BusinessDetail({
             </ol>
           )}
         </Panel>
+      )}
+
+      {planConfirm && (
+        <Modal title="El negocio supera el plan" onClose={() => setPlanConfirm(null)}>
+          <p className="text-sm text-muted">
+            {business.name} tiene más de lo que permite «{planConfirm.next?.name || 'Sin plan'}»:
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {planConfirm.exceeded.map((x) => (
+              <li key={x.key} className="flex items-baseline justify-between gap-3 rounded-md bg-raised px-3 py-2 text-sm">
+                <span className="capitalize text-fg">{x.key}</span>
+                <span className="nx-num text-warn">tiene {x.used} · permite {x.limit}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm text-muted">
+            No se elimina nada. Solo no podrá registrar nuevos hasta cumplir el límite o ampliar su capacidad.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button onClick={() => setPlanConfirm(null)}>Cancelar</Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={async () => {
+                const { planId, next, exceeded } = planConfirm;
+                setPlanConfirm(null);
+                await applyPlan(planId, next, exceeded);
+              }}
+            >
+              Cambiar de todos modos
+            </Button>
+          </div>
+        </Modal>
       )}
     </DetailPage>
   );

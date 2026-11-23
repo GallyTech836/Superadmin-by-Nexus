@@ -299,6 +299,39 @@ export function RowButton({ onActivate, children, className, label }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Carga (esqueleto)
+   ───────────────────────────────────────────────────────────── */
+
+/** Bloque gris en el lugar del contenido mientras carga. Forma con className. */
+export function Skeleton({ className, style }) {
+  return <div aria-hidden="true" className={cx('animate-pulse rounded-md bg-raised', className)} style={style} />;
+}
+
+/** Esqueleto de una página: título, filtros y filas de tabla. */
+export function PageSkeleton({ rows = 6 }) {
+  return (
+    <div role="status" aria-label="Cargando">
+      <Skeleton className="h-7 w-48" />
+      <Skeleton className="mt-2 h-4 w-72 max-w-full" />
+      <div className="mt-6 flex gap-2">
+        <Skeleton className="h-9 w-64 max-w-full" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+      <div className="mt-4 rounded-lg border border-line bg-surface">
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="flex items-center gap-4 border-b border-line px-4 py-3.5 last:border-b-0">
+            <Skeleton className="h-4 flex-1" style={{ maxWidth: 220 }} />
+            <Skeleton className="hidden h-4 w-32 sm:block" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    Modal
    ───────────────────────────────────────────────────────────── */
 

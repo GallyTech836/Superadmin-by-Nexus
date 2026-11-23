@@ -7,6 +7,7 @@ import { useActivity } from './data/useActivity';
 import { usePlatformStats } from './data/usePlatformStats';
 import { usePlans } from './data/usePlans';
 import Sidebar, { BrandMark } from './components/Sidebar';
+import { PageSkeleton } from './components/common';
 import DashboardPage from './pages/DashboardPage';
 import NegociosPage from './pages/NegociosPage';
 import AdminsPage from './pages/AdminsPage';
@@ -100,7 +101,7 @@ function App() {
         )}
         <div className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
           {loadingBiz ? (
-            <p className="text-sm text-muted" role="status">Cargando negocios…</p>
+            <PageSkeleton />
           ) : (
             pages[page]
           )}

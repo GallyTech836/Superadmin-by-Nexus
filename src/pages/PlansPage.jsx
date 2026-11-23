@@ -3,6 +3,7 @@ import { Plus, Trash2, Pencil, Check, Minus, ChevronDown, ChevronRight, Link2, L
 import {
   Modal, Field, SelectField, Toggle, LimitInput, CapStatusBadge, Button, Badge, PageHeader, Notice, EmptyState, Segmented, Label, Input,
 } from '../components/common';
+import { useToast, errorText } from '../components/Toast';
 import { BILLING_CYCLES, BILLING_LABELS, DEFAULT_TRIAL_DAYS, formatPrice, planTrialDays } from '../data/planFeatures';
 import {
   CAPABILITIES,
@@ -98,6 +99,9 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
   const [collapsed, setCollapsed] = useState({}); // { [moduleKey]: true }
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [seeding, setSeeding] = useState(false);
+  const toast = useToast();
+  const [busyPlan, setBusyPlan] = useState(false);
+  const fail = (err) => { console.error(err); toast.error(`No se pudo guardar. ${errorText(err)}`); };
   const [seedResult, setSeedResult] = useState(null);
   const missingLaunch = LAUNCH_PLAN_PRESETS.filter(
     (p) => !plans.some((x) => x.id === p.id || (x.name || '').trim().toLowerCase() === p.name.toLowerCase()),
@@ -120,12 +124,23 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
     }
   }
 
+  // Devuelve true si se guardó (para cerrar el modal solo en ese caso).
   async function toggleActive(plan) {
     const next = plan.active === false;
-    await setPlanActive(plan.id, next);
-    await pushActivity(next ? 'Plan activado' : 'Plan desactivado', `"${plan.name}" ${next ? 'vuelve a estar disponible para asignar' : 'ya no se puede asignar a negocios nuevos'} (los ${usageByPlan[plan.id] || 0} negocios que lo usan lo conservan)`, {
-      planId: plan.id, before: { active: !next }, after: { active: next },
-    });
+    setBusyPlan(true);
+    try {
+      await setPlanActive(plan.id, next);
+      await pushActivity(next ? 'Plan activado' : 'Plan desactivado', `"${plan.name}" ${next ? 'vuelve a estar disponible para asignar' : 'ya no se puede asignar a negocios nuevos'} (los ${usageByPlan[plan.id] || 0} negocios que lo usan lo conservan)`, {
+        planId: plan.id, before: { active: !next }, after: { active: next },
+      });
+      toast.ok(`«${plan.name}» ${next ? 'activado' : 'desactivado'}`);
+      return true;
+    } catch (err) {
+      fail(err);
+      return false;
+    } finally {
+      setBusyPlan(false);
+    }
   }
 
   const usageByPlan = useMemo(() => {
@@ -222,15 +237,26 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
         await pushActivity('Plan creado', `Se creó el plan "${form.name}"`, { planId: id });
       }
       setShowForm(false);
+      toast.ok(editingId ? `Plan «${form.name}» guardado` : `Plan «${form.name}» creado`);
+    } catch (err) {
+      fail(err);
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(plan) {
-    await deletePlan(plan.id);
-    await pushActivity('Plan eliminado', `Se eliminó el plan "${plan.name}"`, { planId: plan.id, before: { name: plan.name } });
-    setConfirmDelete(null);
+    setBusyPlan(true);
+    try {
+      await deletePlan(plan.id);
+      await pushActivity('Plan eliminado', `Se eliminó el plan "${plan.name}"`, { planId: plan.id, before: { name: plan.name } });
+      setConfirmDelete(null);
+      toast.ok(`Plan «${plan.name}» eliminado`);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusyPlan(false);
+    }
   }
 
   return (
@@ -412,10 +438,10 @@ export default function PlansPage({ plans, businesses = [], createPlan, updatePl
               <Button onClick={() => setConfirmDelete(null)}>Cancelar</Button>
               {(usageByPlan[confirmDelete.id] || 0) > 0 ? (
                 confirmDelete.active !== false && (
-                  <Button variant="primary" icon={Power} onClick={async () => { await toggleActive(confirmDelete); setConfirmDelete(null); }}>Desactivar plan</Button>
+                  <Button variant="primary" icon={Power} disabled={busyPlan} onClick={async () => { if (await toggleActive(confirmDelete)) setConfirmDelete(null); }}>Desactivar plan</Button>
                 )
               ) : (
-                <Button variant="danger" icon={Trash2} onClick={() => handleDelete(confirmDelete)}>Eliminar plan</Button>
+                <Button variant="danger" icon={Trash2} disabled={busyPlan} onClick={() => handleDelete(confirmDelete)}>Eliminar plan</Button>
               )}
             </div>
           </div>

@@ -6,10 +6,27 @@ import {
 import { computeSubscriptionEnd } from '../data/planFeatures';
 import { isPlanCompatible } from '../shared/capabilityModel';
 import { getBusinessProfile } from '../shared/businessProfileModel';
+import { useToast, errorText } from '../components/Toast';
 
 export default function SubscriptionsPage({ businesses, plans, updatePlan, updateSubscriptionEnd, pushActivity }) {
   const [editing, setEditing] = useState(null);
   const [dateValue, setDateValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+
+  // Guarda y avisa cómo terminó; si falla, el modal queda abierto.
+  async function run(fn, okMsg) {
+    setBusy(true);
+    try {
+      await fn();
+      toast.ok(okMsg);
+    } catch (err) {
+      console.error(err);
+      toast.error(`No se pudo guardar. ${errorText(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function planName(planId) {
     return plans.find((p) => p.id === planId)?.name || 'Sin plan';
@@ -25,21 +42,25 @@ export default function SubscriptionsPage({ businesses, plans, updatePlan, updat
   }
 
   async function saveDate() {
-    await updateSubscriptionEnd(editing.id, dateValue);
-    await pushActivity('Vencimiento actualizado', `${editing.name} ahora vence el ${dateValue || 'sin definir'}`, {
-      negocioId: editing.id, before: { subscriptionEnd: editing.subscriptionEnd }, after: { subscriptionEnd: dateValue || null },
-    });
-    setEditing(null);
+    await run(async () => {
+      await updateSubscriptionEnd(editing.id, dateValue);
+      await pushActivity('Vencimiento actualizado', `${editing.name} ahora vence el ${dateValue || 'sin definir'}`, {
+        negocioId: editing.id, before: { subscriptionEnd: editing.subscriptionEnd }, after: { subscriptionEnd: dateValue || null },
+      });
+      setEditing(null);
+    }, 'Vencimiento guardado');
   }
 
   async function changePlan(planId) {
-    await updatePlan(editing.id, planId);
-    const newEnd = computeNewSubscriptionEnd(planId);
-    await updateSubscriptionEnd(editing.id, newEnd);
-    await pushActivity('Plan cambiado', `${editing.name} cambió de plan ${planName(editing.plan)} a ${planName(planId)}`, {
-      negocioId: editing.id, planId, before: { plan: editing.plan }, after: { plan: planId, subscriptionEnd: newEnd },
-    });
-    setEditing((e) => (e ? { ...e, plan: planId, subscriptionEnd: newEnd } : e));
+    await run(async () => {
+      await updatePlan(editing.id, planId);
+      const newEnd = computeNewSubscriptionEnd(planId);
+      await updateSubscriptionEnd(editing.id, newEnd);
+      await pushActivity('Plan cambiado', `${editing.name} cambió de plan ${planName(editing.plan)} a ${planName(planId)}`, {
+        negocioId: editing.id, planId, before: { plan: editing.plan }, after: { plan: planId, subscriptionEnd: newEnd },
+      });
+      setEditing((e) => (e ? { ...e, plan: planId, subscriptionEnd: newEnd } : e));
+    }, `Plan cambiado a ${planName(planId)}`);
   }
 
   return (
@@ -96,7 +117,7 @@ export default function SubscriptionsPage({ businesses, plans, updatePlan, updat
           <div className="space-y-6">
             <section>
               <Field label="Fecha de vencimiento" type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />
-              <Button variant="primary" block onClick={saveDate} className="mt-3">Guardar vencimiento</Button>
+              <Button variant="primary" block onClick={saveDate} disabled={busy} className="mt-3">{busy ? 'Guardando…' : 'Guardar vencimiento'}</Button>
             </section>
             <section className="border-t border-line pt-5">
               <SectionLabel>Plan</SectionLabel>
@@ -113,8 +134,9 @@ export default function SubscriptionsPage({ businesses, plans, updatePlan, updat
                         type="button"
                         role="radio"
                         aria-checked={current}
+                        disabled={busy || current}
                         onClick={() => changePlan(p.id)}
-                        className={`h-8 rounded-md border px-3 text-sm transition-colors ${
+                        className={`h-8 rounded-md border px-3 text-sm transition-colors disabled:cursor-not-allowed ${
                           current ? 'border-brand bg-brand-wash font-medium text-fg' : 'border-line-strong bg-raised text-muted hover:text-fg'
                         }`}
                       >
