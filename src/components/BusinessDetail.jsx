@@ -12,7 +12,7 @@ import {
   CAPABILITIES, CAPABILITY_MODULES, CAPABILITY_STATUS, resolveCapabilities, cleanOverrides, usageStatus, getCapability,
   ADDONS, LEGACY_ADDONS, getAddonOffer, computeMonthlyTotal, isPlanCompatible, normalizeAddons, getAddonForCapability,
 } from '../shared/capabilityModel';
-import { computeSubscriptionEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
+import { computeSubscriptionEnd, computeRenewalEnd, todayISO, addDaysISO, DEFAULT_TRIAL_DAYS, formatPrice } from '../data/planFeatures';
 import { useBusinessUsage } from '../data/useBusinessUsage';
 import { useWhatsappClients, formatPhone } from '../data/useWhatsappClients';
 import { useWhatsappBranches, NO_BRANCH_ID } from '../data/useWhatsappBranches';
@@ -168,6 +168,23 @@ export default function BusinessDetail({
         negocioId: business.id, before, after: { status, subscriptionEnd: newEnd ?? business.subscriptionEnd },
       });
     }, `${business.name}: ${STATUS_LABELS[status]}`);
+  }
+
+  // Renovar: suma un ciclo desde el vencimiento actual (si aún no pasó) o desde hoy.
+  const [renewConfirm, setRenewConfirm] = useState(false);
+  const canRenew = business.status !== 'suspended' && plan?.billingCycle !== 'free';
+  const renewalEnd = computeRenewalEnd(plan, business.subscriptionEnd);
+
+  async function renewSubscription() {
+    const newEnd = computeRenewalEnd(plan, business.subscriptionEnd);
+    await run(async () => {
+      const before = { status: business.rawStatus, subscriptionEnd: business.subscriptionEnd };
+      if (business.rawStatus !== 'active') await updateStatus(business.id, 'active');
+      await updateSubscriptionEnd(business.id, newEnd);
+      await pushActivity('Suscripción renovada', `${business.name}: renovado hasta ${newEnd}`, {
+        negocioId: business.id, before, after: { status: 'active', subscriptionEnd: newEnd },
+      });
+    }, `Renovado hasta ${formatDate(newEnd)}`);
   }
 
   // Si el plan nuevo permite menos de lo que el negocio ya tiene, NO se borra
@@ -498,6 +515,9 @@ export default function BusinessDetail({
           <div className="border-t border-line pt-5">
             <SectionLabel>Acciones</SectionLabel>
             <div className="flex flex-wrap gap-2">
+              {canRenew && (
+                <ActionButton tone="emerald" icon={RefreshCw} disabled={busy} onClick={() => setRenewConfirm(true)}>Renovar</ActionButton>
+              )}
               {business.status !== 'active' && business.status !== 'suspended' && (
                 <ActionButton tone="emerald" icon={CheckCircle2} disabled={busy} onClick={() => changeStatus('active', 'Negocio activado')}>Activar</ActionButton>
               )}
@@ -1095,6 +1115,37 @@ export default function BusinessDetail({
             </ol>
           )}
         </Panel>
+      )}
+
+      {renewConfirm && (
+        <Modal title="Renovar suscripción" onClose={() => setRenewConfirm(false)}>
+          <p className="text-sm text-muted">
+            {business.name} · {planName}
+          </p>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <div className="flex justify-between gap-3 rounded-md bg-raised px-3 py-2">
+              <dt className="text-muted">Vence ahora</dt>
+              <dd className="nx-num text-fg">{business.subscriptionEnd ? formatDate(business.subscriptionEnd) : '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-3 rounded-md bg-raised px-3 py-2">
+              <dt className="text-muted">Nuevo vencimiento</dt>
+              <dd className="nx-num text-ok">{formatDate(renewalEnd)}</dd>
+            </div>
+          </dl>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button onClick={() => setRenewConfirm(false)}>Cancelar</Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={async () => {
+                setRenewConfirm(false);
+                await renewSubscription();
+              }}
+            >
+              Renovar
+            </Button>
+          </div>
+        </Modal>
       )}
 
       {planConfirm && (

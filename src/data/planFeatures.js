@@ -5,6 +5,8 @@
 // Ningún nombre de plan ("Básico", "Pro"...) está escrito en el código:
 // los planes se crean en la página Planes y se guardan en `planes/{id}`.
 
+import { laPazDateKey, expiryDateKey } from '../shared/capabilityModel';
+
 export const BILLING_CYCLES = [
   { key: 'free', label: 'Gratis', months: 0 },
   { key: 'monthly', label: 'Mensual', months: 1 },
@@ -25,14 +27,34 @@ export function planTrialDays(plan) {
   return Number(plan?.trialDays) || DEFAULT_TRIAL_DAYS;
 }
 
+/** Hoy "AAAA-MM-DD" en hora de La Paz (antes era UTC: después de las 20:00 daba mañana). */
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return laPazDateKey();
 }
 
 export function addDaysISO(dateISO, days) {
-  const d = dateISO ? new Date(`${dateISO}T12:00:00`) : new Date();
-  d.setDate(d.getDate() + Number(days || 0));
+  const d = new Date(`${dateISO || todayISO()}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + Number(days || 0));
   return d.toISOString().slice(0, 10);
+}
+
+/** Suma meses a "AAAA-MM-DD". Si el día no existe (31 → feb), queda en el último día del mes. */
+export function addMonthsISO(dateISO, months) {
+  const [y, m, d] = (dateISO || todayISO()).split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + Number(months || 0), 1, 12));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
+/** Suma un ciclo del plan a una fecha base. */
+function addPlanCycle(baseISO, plan) {
+  const cycle = plan?.billingCycle;
+  if (cycle === 'free') return addDaysISO(baseISO, Number(plan?.trialDays) || DEFAULT_TRIAL_DAYS);
+  if (cycle === 'monthly') return addMonthsISO(baseISO, 1);
+  if (cycle === 'quarterly') return addMonthsISO(baseISO, 3);
+  if (cycle === 'yearly') return addMonthsISO(baseISO, 12);
+  return addDaysISO(baseISO, 30); // sin plan: 30 días por defecto
 }
 
 /**
@@ -40,14 +62,18 @@ export function addDaysISO(dateISO, days) {
  * (Antes estaba duplicada en NegociosPage y SubscriptionsPage.)
  */
 export function computeSubscriptionEnd(plan) {
-  const cycle = plan?.billingCycle;
-  const date = new Date();
-  if (cycle === 'free') date.setDate(date.getDate() + (Number(plan?.trialDays) || DEFAULT_TRIAL_DAYS));
-  else if (cycle === 'monthly') date.setMonth(date.getMonth() + 1);
-  else if (cycle === 'quarterly') date.setMonth(date.getMonth() + 3);
-  else if (cycle === 'yearly') date.setFullYear(date.getFullYear() + 1);
-  else date.setDate(date.getDate() + 30); // sin plan: 30 días por defecto
-  return date.toISOString().slice(0, 10);
+  return addPlanCycle(todayISO(), plan);
+}
+
+/**
+ * Renovación: suma un ciclo del plan desde el vencimiento actual si todavía no
+ * pasó (pago adelantado: no se pierden días), o desde hoy si ya venció.
+ */
+export function computeRenewalEnd(plan, currentEnd) {
+  const today = todayISO();
+  const current = expiryDateKey(currentEnd);
+  const base = current && current >= today ? current : today;
+  return addPlanCycle(base, plan);
 }
 
 /** Precio mensual equivalente del plan (para MRR estimado). */
