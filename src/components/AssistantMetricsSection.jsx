@@ -147,6 +147,7 @@ export default function AssistantMetricsSection({ business, pushActivity }) {
           Conversación: mensajes del mismo cliente con menos de 30 min entre sí. Termina sin reserva cuando pasan 30 min sin que confirme;
           mientras sigue abierta puede cambiar de categoría. Reservas: citas del mes (por fecha de la cita) sin canceladas ni registros de
           servicio; por WhatsApp = creadas por el asistente desde el inicio de la medición. Lo anterior a esa fecha se muestra como pruebas.
+          Gráfico: fondo rojo = el WhatsApp se desconectó ese día o siguió sin mensajes hasta volver; un día en cero sin fondo = nadie escribió.
         </p>
       </div>
     </section>
@@ -232,7 +233,14 @@ function ConversationBar({ conversaciones: c }) {
   );
 }
 
-/** Barras por día: salientes (azul) y entrantes (gris). Días de prueba, atenuados. */
+/**
+ * Barras por día de TODO el mes: salientes (azul) y entrantes (gris).
+ * Días de prueba, atenuados. Días que faltan: solo la marca del día.
+ * Fondo rojo: el WhatsApp se cayó ese día (aviso de YCloud) o siguió sin
+ * mensajes después de una caída. Un día en cero sin fondo = nadie escribió.
+ */
+const CONEXION_LABELS = { caida: 'se desconectó', sin_conexion: 'sin conexión' };
+
 function DailyChart({ diario = [] }) {
   if (!diario.length) return null;
   const max = Math.max(1, ...diario.map((d) => Math.max(d.enviados, d.entrantes)));
@@ -241,28 +249,71 @@ function DailyChart({ diario = [] }) {
   const slot = W / diario.length;
   const bar = Math.max(1, Math.min(8, slot / 2 - 1.5));
   const y = (v) => H - (v / max) * H;
+  const conCaidas = diario.some((d) => d.conexion);
+  // Número del día cada 5 días (1, 5, 10…) y el último.
+  const etiqueta = (i) => {
+    const dia = Number(String(diario[i].fecha).slice(8, 10));
+    return dia === 1 || dia % 5 === 0 || i === diario.length - 1 ? dia : null;
+  };
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
         <span className="font-medium">Consumo diario</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-brand" aria-hidden="true" />Salientes</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--color-line-strong)' }} aria-hidden="true" />Entrantes</span>
+        {conCaidas && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-sm" style={{ background: 'var(--color-bad)', opacity: 0.35 }} aria-hidden="true" />Sin conexión
+          </span>
+        )}
         <span className="ml-auto nx-num text-subtle">máx. {fmt(max)}</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H + 16}`} className="h-auto w-full" role="img" aria-label="Mensajes por día">
+      <svg viewBox={`0 0 ${W} ${H + 16}`} className="h-auto w-full" role="img" aria-label="Mensajes por día del mes">
+        {diario.map((d, i) => (d.conexion ? (
+          <rect
+            key={`c-${d.fecha}`}
+            x={i * slot}
+            y="0"
+            width={slot}
+            height={H}
+            fill="var(--color-bad)"
+            opacity={d.conexion === 'caida' ? 0.22 : 0.1}
+          />
+        ) : null))}
         <line x1="0" x2={W} y1={H + 0.5} y2={H + 0.5} stroke="var(--color-line)" />
         {diario.map((d, i) => {
           const cx = i * slot + slot / 2;
+          const estado = [
+            d.futuro ? 'todavía no llega' : null,
+            !d.futuro && !d.real ? 'pruebas' : null,
+            d.conexion ? CONEXION_LABELS[d.conexion] : null,
+          ].filter(Boolean).join(', ');
+          const texto = d.futuro
+            ? `${dayLabel(d.fecha)}: todavía no llega`
+            : `${dayLabel(d.fecha)}: ${d.enviados} salientes, ${d.entrantes} entrantes${estado ? ` (${estado})` : ''}`;
           return (
-            <g key={d.fecha} opacity={d.real ? 1 : 0.35}>
-              <title>{`${dayLabel(d.fecha)}: ${d.enviados} salientes, ${d.entrantes} entrantes${d.real ? '' : ' (pruebas)'}`}</title>
-              <rect x={cx - bar - 0.5} y={y(d.enviados)} width={bar} height={H - y(d.enviados)} rx="1" fill="var(--color-brand)" />
-              <rect x={cx + 0.5} y={y(d.entrantes)} width={bar} height={H - y(d.entrantes)} rx="1" fill="var(--color-line-strong)" />
+            <g key={d.fecha} opacity={d.futuro ? 0.4 : d.real ? 1 : 0.35}>
+              <title>{texto}</title>
+              <rect x={i * slot} y="0" width={slot} height={H} fill="transparent" />
+              {d.futuro ? (
+                <line x1={cx} x2={cx} y1={H - 3} y2={H} stroke="var(--color-line-strong)" />
+              ) : (
+                <>
+                  <rect x={cx - bar - 0.5} y={y(d.enviados)} width={bar} height={H - y(d.enviados)} rx="1" fill="var(--color-brand)" />
+                  <rect x={cx + 0.5} y={y(d.entrantes)} width={bar} height={H - y(d.entrantes)} rx="1" fill="var(--color-line-strong)" />
+                </>
+              )}
             </g>
           );
         })}
-        <text x="0" y={H + 13} fontSize="10" fill="var(--color-subtle)">{dayLabel(diario[0].fecha)}</text>
-        <text x={W} y={H + 13} fontSize="10" fill="var(--color-subtle)" textAnchor="end">{dayLabel(diario[diario.length - 1].fecha)}</text>
+        {diario.map((d, i) => {
+          const n = etiqueta(i);
+          if (n === null) return null;
+          const cx = i * slot + slot / 2;
+          const anchor = i === 0 ? 'start' : i === diario.length - 1 ? 'end' : 'middle';
+          const x = i === 0 ? 0 : i === diario.length - 1 ? W : cx;
+          return <text key={`l-${d.fecha}`} x={x} y={H + 13} fontSize="10" fill="var(--color-subtle)" textAnchor={anchor}>{n}</text>;
+        })}
       </svg>
     </div>
   );
